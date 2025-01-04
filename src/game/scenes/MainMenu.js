@@ -25,16 +25,14 @@ export class MainMenu extends Scene
         EventBus.emit('current-scene-ready', this);
     }
 
-    changeScene ()
-    {
-        if (this.logoTween)
-        {
+    changeScene() {
+        if (this.logoTween) {
             this.logoTween.stop();
             this.logoTween = null;
         }
-
-        this.scene.start('Game');
+        this.scene.start('TransitionScene', { nextScene: 'OvercookedGame' });
     }
+    
 
     moveLogo (reactCallback)
     {

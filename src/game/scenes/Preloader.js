@@ -30,10 +30,30 @@ export class Preloader extends Scene
     preload ()
     {
         //  Load the assets for the game - Replace with your own assets
-        this.load.setPath('assets');
+        this.load.setPath('src/game/assets/raw_ingredients/');
 
-        this.load.image('logo', 'logo.png');
-        this.load.image('star', 'star.png');
+        this.load.image('raw_avocado', 'avocado1.png');
+        this.load.image('raw_cheese', 'cheese1.png');
+        this.load.image('raw_meat', 'meat1.png');
+        this.load.image('raw_tomato', 'tomato1.png');
+        this.load.image('raw_tortilla', 'tortilla1.png');
+
+        this.load.setPath('src/game/assets/prepped_ingredients/');
+
+        this.load.image('prepped_avocado', 'avocado2.png');
+        this.load.image('prepped_cheese', 'cheese2.png');
+        this.load.image('prepped_meat', 'meat2.png');
+        this.load.image('prepped_tomato', 'tomato2.png');
+        this.load.image('prepped_tortilla', 'tortilla2.png');
+
+        this.load.setPath('src/game/assets/meals/');
+        this.load.image('guacamole', 'meal1Guacamole.png');
+        this.load.image('quesadilla', 'meal2Quessadilla.png');
+        this.load.image('tacos', 'meal3Tacos.png');
+        this.load.image('burrito', 'meal4Burrito.png');
+        this.load.image('chipsAndGuac', 'meal5Chipsandguac.png');
+
+
     }
 
     create ()
