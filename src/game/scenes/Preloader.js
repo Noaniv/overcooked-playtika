@@ -32,29 +32,30 @@ export class Preloader extends Scene
         //  Load the assets for the game - Replace with your own assets
         this.load.setPath('src/game/assets/raw_ingredients/');
 
-        this.load.image('raw_avocado', 'avocado1.png');
-        this.load.image('raw_cheese', 'cheese1.png');
-        this.load.image('raw_meat', 'meat1.png');
-        this.load.image('raw_tomato', 'tomato1.png');
-        this.load.image('raw_tortilla', 'tortilla1.png');
+        this.load.image('avocado1', 'avocado1.png');
+        this.load.image('cheese1', 'cheese1.png');
+        this.load.image('meat1', 'meat1.png');
+        this.load.image('tomato1', 'tomato1.png');
+        this.load.image('tortilla1', 'tortilla1.png');
 
         this.load.setPath('src/game/assets/prepped_ingredients/');
 
-        this.load.image('prepped_avocado', 'avocado2.png');
-        this.load.image('prepped_cheese', 'cheese2.png');
-        this.load.image('prepped_meat', 'meat2.png');
-        this.load.image('prepped_tomato', 'tomato2.png');
-        this.load.image('prepped_tortilla', 'tortilla2.png');
+        this.load.image('avocado2', 'avocado2.png');
+        this.load.image('cheese2', 'cheese2.png');
+        this.load.image('meat2', 'meat2.png');
+        this.load.image('tomato2', 'tomato2.png');
+        this.load.image('tortilla2', 'tortilla2.png');
 
-        this.load.setPath('src/game/assets/meals/');
-        this.load.image('guacamole', 'meal1Guacamole.png');
-        this.load.image('quesadilla', 'meal2Quessadilla.png');
-        this.load.image('tacos', 'meal3Tacos.png');
-        this.load.image('burrito', 'meal4Burrito.png');
-        this.load.image('chipsAndGuac', 'meal5Chipsandguac.png');
+        this.load.setPath('src/game/assets/recipes/');
 
-
+        this.load.image('burrito_recipe', 'burrito_recipe.png');
+        this.load.image('chipsandguac_recipe', 'chipsandguac_recipe.png');
+        this.load.image('guacamole_recipe', 'guacamole_recipe.png');
+        this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
+        this.load.image('tacos_recipe', 'tacos_recipe.png');
     }
+
+    
 
     create ()
     {
@@ -62,6 +63,6 @@ export class Preloader extends Scene
         //  For example, you can define global animations here, so we can use them in other scenes.
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
-        this.scene.start('MainMenu');
+        this.scene.start('OvercookedGame');
     }
 }
