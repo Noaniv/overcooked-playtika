@@ -12,10 +12,10 @@ export class OvercookedGame extends Scene {
             cookingStation: [],
             cuttingBoard: []
         };
-        this.cuttingBoardTime = 0; // Timer for the space bar holding down on the cutting board
-        this.timerEvent = null; // Phaser timer event
-        this.timerText = null; // Timer display text
-        this.keys = null;
+        this.isCutting = false;
+        this.cuttingTimer = null;
+        this.cuttingProgress = null;
+        this.spaceKeyIsDown = false;
     }
 
     create() {
@@ -112,9 +112,20 @@ export class OvercookedGame extends Scene {
 
         this.input.keyboard.on('keydown-E', () => this.handleChefInteraction());
         this.input.keyboard.on('keydown-SPACE', () => this.handleSousChefInteraction());
+        this.input.keyboard.on('keyup-SPACE', () => {
+            this.spaceKeyIsDown = false;
+            if (this.isCutting) {
+                // If cutting was in progress, destroy the ingredient
+                if (this.sousChef.heldIngredient) {
+                    this.sousChef.heldIngredient.gameObject.destroy();
+                    this.sousChef.heldIngredient.label.destroy();
+                    this.sousChef.heldIngredient = null;
+                }
+                this.cleanupCuttingTimer();
+            }
+        });
     }
 
-    // Helper function for checking proximity
     // Helper function for checking proximity (adjusted for full height interaction)
 isNearZone(player, zone, radius = 80) {
     const playerCenterX = player.x ;
@@ -253,9 +264,63 @@ isNearZone(player, zone, radius = 80) {
         return { x: dropX, y: dropY };
     }
     
+    startCuttingTimer() {
+        if (this.isCutting) return; // Don't start if already cutting
+        
+        this.isCutting = true;
+        this.spaceKeyIsDown = true;
+        
+        // Create a progress bar
+        this.cuttingProgress = this.add.rectangle(
+            this.zones.cuttingBoard.x + this.zones.cuttingBoard.width / 2,
+            this.zones.cuttingBoard.y + this.zones.cuttingBoard.height + 20,
+            0,
+            10,
+            0x00ff00
+        ).setOrigin(0.5, 0);
     
+        // Create the timer
+        this.cuttingTimer = this.time.addEvent({
+            delay: 5000,
+            callback: () => this.completeCutting(),
+            loop: false
+        });
+    }
     
+    completeCutting() {
+        if (!this.spaceKeyIsDown) return; // If space was released, don't complete
+        
+        // Replace the ingredient image with a "cut" version
+        const oldImage = this.sousChef.heldIngredient.gameObject;
+        const oldLabel = this.sousChef.heldIngredient.label;
+        const ingredientName = this.sousChef.heldIngredient.name;
+        
+        // Create new "cut" version of the ingredient
+        const newImage = this.add.image(
+            oldImage.x,
+            oldImage.y,
+            `${ingredientName.toLowerCase()}2` // Assuming you have images named "ingredient2" for cut versions
+        ).setInteractive()
+        .setScale(0.3);
+        
+        // Update the held ingredient reference
+        this.sousChef.heldIngredient.gameObject = newImage;
+        oldImage.destroy(); // Remove old image
+        
+        this.cleanupCuttingTimer();
+    }
     
+    cleanupCuttingTimer() {
+        if (this.cuttingProgress) {
+            this.cuttingProgress.destroy();
+            this.cuttingProgress = null;
+        }
+        if (this.cuttingTimer) {
+            this.cuttingTimer.remove();
+            this.cuttingTimer = null;
+        }
+        this.isCutting = false;
+    }
     
     handleChefInteraction() {
         if (!this.chef.heldIngredient) {
@@ -299,6 +364,13 @@ isNearZone(player, zone, radius = 80) {
     
     
     handleSousChefInteraction() {
+        if (this.sousChef.heldIngredient && this.isNearZone(this.sousChef, this.zones.cuttingBoard)) {
+            if (!this.isCutting) {
+                this.startCuttingTimer();
+            }
+            return; // Exit to prevent other interactions while cutting
+        }
+
         if (!this.sousChef.heldIngredient) {
             // Try to pick up from sidebar (ingredient selection area)
             for (const ingredient of this.ingredients) {
@@ -377,5 +449,9 @@ isNearZone(player, zone, radius = 80) {
             this.sousChef.heldIngredient.gameObject.setPosition(this.sousChef.x + this.sousChef.width / 2, this.sousChef.y - 20);
             this.sousChef.heldIngredient.label.setPosition(this.sousChef.x + this.sousChef.width / 2, this.sousChef.y - 30);
         }
-    }    
+        if (this.isCutting && this.cuttingProgress && this.cuttingTimer) {
+            const progress = 1 - this.cuttingTimer.getProgress(); // Get remaining time percentage
+            this.cuttingProgress.width = this.zones.cuttingBoard.width * progress; // Update progress bar width
+        }
+    }
 }
