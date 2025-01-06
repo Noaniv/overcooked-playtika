@@ -16,6 +16,11 @@ export class OvercookedGame extends Scene {
         this.cuttingTimer = null;
         this.cuttingProgress = null;
         this.spaceKeyIsDown = false;
+        this.despawnTimers = new Map();
+        this.gameTimer = null;
+        this.timeText = null;
+        this.score = 0;
+        this.scoreText = null;
     }
 
     create() {
@@ -127,7 +132,40 @@ export class OvercookedGame extends Scene {
                 this.cleanupCuttingTimer();
             }
         });
+        this.startGameTimer();
     }
+
+    startGameTimer() {
+        let timeLeft = 120; // 2 minutes in seconds
+        this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, `Time: ${timeLeft}s`, {
+            fontSize: '32px',
+            fill: '#000',
+            backgroundColor: '#ffffff',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5);
+        this.scoreText = this.add.text(this.scale.width / 2, this.scale.height - 80, `Score: ${this.score}`, {
+            fontSize: '32px',
+            fill: '#000',
+            backgroundColor: '#ffffff',
+            padding: { x: 10, y: 5 }
+        }).setOrigin(0.5);
+    
+        this.gameTimer = this.time.addEvent({
+            delay: 1000,
+            callback: () => {
+                timeLeft--;
+                this.timeText.setText(`Time: ${timeLeft}s`);
+                if (timeLeft <= 0) {
+                    this.endGame();
+                }
+            },
+            repeat: 120
+        });
+    }
+    
+    endGame() {
+        this.scene.start('GameOver', { score: this.score });
+    }    
 
     // Helper function for checking proximity (adjusted for full height interaction)
 isNearZone(player, zone, radius = 80) {
@@ -164,6 +202,19 @@ isNearZone(player, zone, radius = 80) {
         return distance < radius;
     }
 
+    handleIngredientPickup(player, ingredient, zoneKey) {
+        const timer = this.despawnTimers.get(ingredient.gameObject);
+        if (timer) {
+            timer.remove();
+            this.despawnTimers.delete(ingredient.gameObject);
+        }
+        this.pickUpIngredient(player, ingredient);
+        this.placedIngredients[zoneKey] = this.placedIngredients[zoneKey].filter(ing => ing !== ingredient);
+        ingredient.gameObject.destroy();
+        ingredient.label.destroy();
+        if (ingredient.timeText) ingredient.timeText.destroy();
+    }
+
     pickUpIngredient(player, ingredient) {
         if (!player.heldIngredient && ingredient) {
             // Get the current texture key of the ingredient
@@ -198,30 +249,67 @@ isNearZone(player, zone, radius = 80) {
     dropOffIngredient(player, zone) {
         if (!player.heldIngredient) return false;
     
-        const dropPosition = zone.key === 'cookingStation' 
-            ? this.getClosestDropPosition(player, this.zones.cookingStation)
-            : { 
-                x: zone.x + zone.width / 2, 
-                y: player.y + player.height / 2 
-            };
-    
+        const dropPosition = this.getDropPosition(zone, player);
         const zoneKey = Object.keys(this.zones).find(key => this.zones[key] === zone);
+        
         if (zoneKey && this.placedIngredients[zoneKey]) {
             const newIngredient = { 
                 name: player.heldIngredient.name,
                 gameObject: player.heldIngredient.gameObject,
                 label: player.heldIngredient.label,
                 x: dropPosition.x, 
-                y: dropPosition.y 
+                y: dropPosition.y
             };
+    
+            // Only add timer for divider zone
+            if (zoneKey === 'divider') {
+                newIngredient.timeText = this.add.text(dropPosition.x, dropPosition.y - 40, '10', { 
+                    fontSize: '20px', 
+                    fill: '#ff0000',
+                    fontStyle: 'bold',
+                    backgroundColor: '#ffffff',
+                    padding: { x: 5, y: 2 }
+                }).setOrigin(0.5);
+    
+                let timeLeft = 10;
+                const timer = this.time.addEvent({
+                    delay: 1000,
+                    callback: () => {
+                        timeLeft--;
+                        if (timeLeft <= 0) {
+                            newIngredient.gameObject.destroy();
+                            newIngredient.label.destroy();
+                            newIngredient.timeText.destroy();
+                            const index = this.placedIngredients[zoneKey].indexOf(newIngredient);
+                            if (index > -1) {
+                                this.placedIngredients[zoneKey].splice(index, 1);
+                            }
+                            this.despawnTimers.delete(newIngredient.gameObject);
+                        } else {
+                            newIngredient.timeText.setText(timeLeft.toString());
+                        }
+                    },
+                    repeat: 10
+                });
+                this.despawnTimers.set(newIngredient.gameObject, timer);
+            }
+    
             this.placedIngredients[zoneKey].push(newIngredient);
         }
     
         player.heldIngredient.gameObject.setPosition(dropPosition.x, dropPosition.y);
         player.heldIngredient.label.setPosition(dropPosition.x, dropPosition.y + 40);
         player.heldIngredient = null;
-    
         return true;
+    }
+    
+    getDropPosition(zone, player) {
+        return zone.key === 'cookingStation' 
+            ? this.getClosestDropPosition(player, this.zones.cookingStation)
+            : { 
+                x: zone.x + zone.width / 2, 
+                y: player.y + player.height / 2 
+            };
     }
     
     getClosestDropPosition(player, zone) {
@@ -340,91 +428,65 @@ completeCutting() {
     }
     
     handleChefInteraction() {
+    if (!this.chef.heldIngredient) {
+        // Try pickup from divider
+        for (const ingredient of this.placedIngredients.divider) {
+            if (this.isNearIngredient(this.chef, ingredient)) {
+                this.handleIngredientPickup(this.chef, ingredient, 'divider');
+                break;
+            }
+        }
+        // Try pickup from cooking station
         if (!this.chef.heldIngredient) {
-            // Try to pick up from divider (multiple ingredients allowed)
-            const dividerIngredients = this.placedIngredients.divider;
-            for (const ingredient of dividerIngredients) {
-                if (this.isNearIngredient(this.chef, ingredient)) {
-                    this.pickUpIngredient(this.chef, ingredient);
-                    // Remove ingredient from the divider after pick up
-                    this.placedIngredients.divider = this.placedIngredients.divider.filter(ing => ing !== ingredient);
-                    ingredient.gameObject.destroy();
-                    ingredient.label.destroy();
-                    break; // Pick up the first ingredient found
-                }
+            const ingredient = this.placedIngredients.cookingStation[0];
+            if (ingredient && this.isNearZone(this.chef, this.zones.cookingStation)) {
+                this.handleIngredientPickup(this.chef, ingredient, 'cookingStation');
             }
-    
-            // Try to pick up from cooking station (multiple ingredients allowed)
-            if (!this.chef.heldIngredient) {
-                const cookingStationIngredient = this.placedIngredients.cookingStation[0];
-                if (cookingStationIngredient && this.isNearZone(this.chef, this.zones.cookingStation)) {
-                    this.pickUpIngredient(this.chef, cookingStationIngredient);
-                    // Remove ingredient from cooking station after pick up
-                    this.placedIngredients.cookingStation.shift();
-                    cookingStationIngredient.gameObject.destroy();
-                    cookingStationIngredient.label.destroy();
-                }
-            }
-        } else {
-            // Try to drop off at cutting board
-            if (this.isNearZone(this.chef, this.zones.cookingStation)) {
-                this.dropOffIngredient(this.chef, this.zones.cookingStation);
-            }
-            // Drop off at left trash can
-            else if (this.isNearZone(this.chef, this.zones.leftTrash)) {
-                this.chef.heldIngredient.gameObject.destroy();
-                this.chef.heldIngredient.label.destroy();
-                this.chef.heldIngredient = null;
-            }
+        }
+    } else {
+        if (this.isNearZone(this.chef, this.zones.cookingStation)) {
+            this.dropOffIngredient(this.chef, this.zones.cookingStation);
+        } else if (this.isNearZone(this.chef, this.zones.leftTrash)) {
+            this.chef.heldIngredient.gameObject.destroy();
+            this.chef.heldIngredient.label.destroy();
+            this.chef.heldIngredient = null;
         }
     }
-    
-    
-    handleSousChefInteraction() {
-        if (this.sousChef.heldIngredient && this.isNearZone(this.sousChef, this.zones.cuttingBoard)) {
-            if (!this.isCutting) {
-                this.startCuttingTimer();
-            }
-            return; // Exit to prevent other interactions while cutting
-        }
+}
 
+handleSousChefInteraction() {
+    if (this.sousChef.heldIngredient && this.isNearZone(this.sousChef, this.zones.cuttingBoard)) {
+        if (!this.isCutting) this.startCuttingTimer();
+        return;
+    }
+
+    if (!this.sousChef.heldIngredient) {
+        // Try pickup from sidebar
+        for (const ingredient of this.ingredients) {
+            if (this.isNearIngredient(this.sousChef, ingredient)) {
+                this.pickUpIngredient(this.sousChef, ingredient);
+                break;
+            }
+        }
+        // Try pickup from divider
         if (!this.sousChef.heldIngredient) {
-            // Try to pick up from sidebar (ingredient selection area)
-            for (const ingredient of this.ingredients) {
+            for (const ingredient of this.placedIngredients.divider) {
                 if (this.isNearIngredient(this.sousChef, ingredient)) {
-                    this.pickUpIngredient(this.sousChef, ingredient);
+                    this.handleIngredientPickup(this.sousChef, ingredient, 'divider');
                     break;
                 }
             }
-    
-            // Try to pick up from divider (multiple ingredients allowed)
-            if (!this.sousChef.heldIngredient) {
-                const dividerIngredients = this.placedIngredients.divider;
-                for (const ingredient of dividerIngredients) {
-                    if (this.isNearIngredient(this.sousChef, ingredient)) {
-                        this.pickUpIngredient(this.sousChef, ingredient);
-                        // Remove ingredient from the divider after pick up
-                        this.placedIngredients.divider = this.placedIngredients.divider.filter(ing => ing !== ingredient);
-                        ingredient.gameObject.destroy();
-                        ingredient.label.destroy();
-                        break;
-                    }
-                }
-            }
-        } else {
-            // Try to drop off at divider (multiple ingredients allowed)
-            if (this.isNearZone(this.sousChef, this.zones.divider)) {
-                this.dropOffIngredient(this.sousChef, this.zones.divider);
-            }
-            // Try to drop off at right trash can
-            else if (this.isNearZone(this.sousChef, this.zones.rightTrash)) {
-                this.sousChef.heldIngredient.gameObject.destroy();
-                this.sousChef.heldIngredient.label.destroy();
-                this.sousChef.heldIngredient = null;
-            }
+        }
+    } else {
+        if (this.isNearZone(this.sousChef, this.zones.divider)) {
+            this.dropOffIngredient(this.sousChef, this.zones.divider);
+        } else if (this.isNearZone(this.sousChef, this.zones.rightTrash)) {
+            this.sousChef.heldIngredient.gameObject.destroy();
+            this.sousChef.heldIngredient.label.destroy();
+            this.sousChef.heldIngredient = null;
         }
     }
-    
+}
 
     update() {
         // Chef movement: Prevent passing the divider but allow free movement on the left side

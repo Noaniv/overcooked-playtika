@@ -7,6 +7,9 @@ export class GameOver extends Scene
     {
         super('GameOver');
     }
+    init(data) {
+        this.finalScore = data.score;
+    }
 
     create ()
     {
@@ -14,17 +17,31 @@ export class GameOver extends Scene
 
         this.add.image(512, 384, 'background').setAlpha(0.5);
 
-        this.add.text(512, 384, 'Game Over', {
-            fontFamily: 'Arial Black', fontSize: 64, color: '#ffffff',
-            stroke: '#000000', strokeThickness: 8,
-            align: 'center'
-        }).setOrigin(0.5).setDepth(100);
+        const centerX = this.scale.width / 2;
+        const centerY = this.scale.height / 2;
 
-        EventBus.emit('current-scene-ready', this);
-    }
+        this.add.text(centerX, centerY - 50, 'Game Over!', {
+            fontSize: '48px',
+            fill: '#000'
+        }).setOrigin(0.5);
 
-    changeScene ()
-    {
-        this.scene.start('MainMenu');
+        this.add.text(centerX, centerY + 50, `Final Score: ${this.finalScore}`, {
+            fontSize: '32px',
+            fill: '#000'
+        }).setOrigin(0.5);
+
+        // Restart button
+        const restartButton = this.add.text(centerX, centerY + 150, 'Play Again', {
+            fontSize: '24px',
+            fill: '#000',
+            backgroundColor: '#fff',
+            padding: { x: 20, y: 10 }
+        })
+        .setInteractive()
+        .setOrigin(0.5);
+
+        restartButton.on('pointerdown', () => {
+            this.scene.start('OvercookedGame');
+        });
     }
 }
