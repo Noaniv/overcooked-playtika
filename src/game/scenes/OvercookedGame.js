@@ -21,72 +21,108 @@ export class OvercookedGame extends Scene {
         this.timeText = null;
         this.score = 0;
         this.scoreText = null;
+
+        this.recipes = [
+            {
+                name: 'Taco',
+                image: 'taco_recipe',
+                result: 'taco_complete',
+                ingredients: ['Tortilla', 'Cheese', 'Tomato'],
+                points: 50
+            },
+            {
+                name: 'Burrito',
+                image: 'burrito_recipe',
+                result: 'burrito_complete',
+                ingredients: ['Tortilla', 'Meat', 'Avocado', 'Cheese'],
+                points: 40
+            }
+        ];
+    
+        // Recipe state variables
+        this.currentRecipe = null;
+        this.recipeDisplay = null;
+        this.cookingResult = null;
     }
 
     create() {
-        const width = this.scale.width;
-        const height = this.scale.height;
-        const dividerWidth = 150;
-        const dividerX = (width - dividerWidth) / 2;
 
-        this.zones = {
-            sidebar: { x: width - 100, y: 0, width: 100, height: height },
-            divider: { x: dividerX, y: 0, width: dividerWidth, height: height},
-            cookingStation: { x: 0, y: 0, width: 439, height: 120 },
-            cuttingBoard: { x: dividerX + 150, y: 0, width: 336, height: 120 },
-            leftTrash: { x: 50, y: height - 100, width: 80, height: 80 },
-            rightTrash: { x: width - 130, y: height - 100, width: 80, height: 80 }
-        };
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const dividerWidth = 150;  // Changed back to 150 from 350
+    const dividerX = (width - dividerWidth) / 2;
 
+    this.zones = {
+        sidebar: { x: width - 100, y: 0, width: 100, height: height },
+        divider: { x: dividerX, y: 0, width: dividerWidth, height: height},
+        cookingStation: { x: 0, y: -133, width: 439, height: 420 },  // Added x offset
+        cuttingBoard: { x: dividerX + dividerWidth, y: -160, width: 339, height: 473 },  // Adjusted x position
+        leftTrash: { x: 50, y: height - 85, width: 80, height: 80 },
+        rightTrash: { x: width - 130, y: height - 85, width: 80, height: 80 },
+        readyTable: { x: -250, y: height - 420, width: 600, height: 390 }
+    };
 
-        const cuttingBoardZone = this.add.rectangle(this.zones.cuttingBoard.x, this.zones.cuttingBoard.y, this.zones.cuttingBoard.width, this.zones.cuttingBoard.height, 0x8B4513)
-            .setOrigin(0)
-            .setInteractive();
-
-
-        this.add.rectangle(0, 0, width, height, 0xf9f4da).setOrigin(0);
-
-        Object.entries(this.zones).forEach(([key, zone]) => {
-            let color;
-            switch (key) {
-                case 'sidebar': color = 0xffc0cb; break;
-                case 'divider': color = 0x808080; break;
-                case 'cookingStation':
-                case 'cuttingBoard': color = 0x8B4513; break;
-                default: color = 0x808080;
-            }
-
-            
-
-            const rect = this.add.rectangle(zone.x, zone.y, zone.width, zone.height, color)
+// Create all game zones
+Object.entries(this.zones).forEach(([key, zone]) => {
+    switch (key) {
+        case 'sidebar':
+            this.add.rectangle(zone.x, zone.y, zone.width, zone.height, 0xffc0cb)
                 .setOrigin(0)
                 .setInteractive();
+            break;
+        case 'divider':
+            this.add.rectangle(zone.x, zone.y, zone.width, zone.height, 0x808080)
+                .setOrigin(0)
+                .setInteractive();
+            break;
+        case 'cookingStation':
+            const cookingStation = this.add.image(zone.x, zone.y, 'cookingStation')
+                .setOrigin(0)
+                .setDisplaySize(zone.width, zone.height)
+                .setInteractive();
+            break;
+        case 'cuttingBoard':
+            const cuttingBoard = this.add.image(zone.x, zone.y, 'cuttingBoard')
+                .setOrigin(0)
+                .setDisplaySize(zone.width, zone.height)
+                .setInteractive();
+            break;
+        case 'leftTrash':
+        case 'rightTrash':
+            this.add.image(zone.x, zone.y, 'trash')
+                .setOrigin(0)
+                .setDisplaySize(zone.width, zone.height)
+                .setInteractive();
+            break;
+            case 'readyTable':
+                const readyTable = this.add.image(zone.x, zone.y, 'readyTable')
+                    .setOrigin(0)
+                    .setDisplaySize(zone.width, zone.height)
+                    .setInteractive();
+                break;
+    }
+});
+        // Create chef and sous-chef
+    this.chef = this.add.image(50, height / 4, 'ChefImage')
+    .setOrigin(0)
+    .setDisplaySize(130, 150)
+    .setInteractive();
+    this.chef.width = 130;  // Explicitly set width
+    this.chef.height = 150; // Explicitly set height
+    this.chef.heldIngredient = null;
 
-            if (key === 'cookingStation' || key === 'cuttingBoard') {
-                this.add.text(
-                    zone.x + zone.width / 2,
-                    zone.y + 30,
-                    key === 'cookingStation' ? 'Cooking Station' : 'Cutting Board',
-                    { fontSize: '16px', fill: '#fff' }
-                ).setOrigin(0.5);
-            }
-        });
+    this.sousChef = this.add.image(
+        dividerX + dividerWidth + 50,
+        height / 4,
+        'Sous_chefImage'
+    ).setOrigin(0)
+        .setDisplaySize(110, 120)
+        .setInteractive();
+    this.sousChef.width = 110;  // Explicitly set width
+    this.sousChef.height = 120; // Explicitly set height
+    this.sousChef.heldIngredient = null;
 
-        this.chef = this.add.rectangle(50, height / 4, 50, 50, 0x00ff00)
-            .setOrigin(0)
-            .setInteractive();
-        this.chef.heldIngredient = null;
-
-        this.sousChef = this.add.rectangle(
-            dividerX + dividerWidth + 50,
-            height / 4,
-            50,
-            50,
-            0xffff00
-        ).setOrigin(0)
-            .setInteractive();
-        this.sousChef.heldIngredient = null;
-
+        // Create ingredients
         this.ingredients = [
             { name: 'Avocado', x: this.zones.sidebar.x + 60, y: 50 },
             { name: 'Meat', x: this.zones.sidebar.x + 60, y: 175 },
@@ -96,15 +132,20 @@ export class OvercookedGame extends Scene {
         ].map(ing => {
             const image = this.add.image(ing.x, ing.y, `${ing.name.toLowerCase()}1`)
                 .setInteractive()
-                .setScale(0.3); // Scale down to half size
-            const text = this.add.text(ing.x, ing.y + 40, ing.name, {
-                fontSize: '12px',
-                fill: '#000'
-            }).setOrigin(0.5);
-            return { ...ing, gameObject: image, label: text };
+                .setScale(0.3);
+        
+            return { ...ing, gameObject: image };
         });
         
 
+        // Display current recipe at the top of the divider
+    this.currentRecipe = this.recipes[0]; // Start with the first recipe
+    this.recipeDisplay = this.add.image(this.zones.divider.x + this.zones.divider.width / 2, 200, this.currentRecipe.image)
+        .setOrigin(0.5)
+        .setScale(0.4); // Adjust scale as needed
+
+
+        // Set up controls
         this.keys = this.input.keyboard.addKeys({
             up: 'W',
             down: 'S',
@@ -118,23 +159,25 @@ export class OvercookedGame extends Scene {
             interact2: 'SPACE'
         });
 
+        // Add event listeners
         this.input.keyboard.on('keydown-E', () => this.handleChefInteraction());
         this.input.keyboard.on('keydown-SPACE', () => this.handleSousChefInteraction());
         this.input.keyboard.on('keyup-SPACE', () => {
             this.spaceKeyIsDown = false;
             if (this.isCutting) {
-                // If cutting was in progress, destroy the ingredient
                 if (this.sousChef.heldIngredient) {
+                    this.score -= 5;  // Penalty for interrupting cutting
+                    this.scoreText.setText(`Score: ${this.score}`);
+                    
                     this.sousChef.heldIngredient.gameObject.destroy();
-                    this.sousChef.heldIngredient.label.destroy();
                     this.sousChef.heldIngredient = null;
                 }
                 this.cleanupCuttingTimer();
             }
         });
+
         this.startGameTimer();
     }
-
     startGameTimer() {
         let timeLeft = 120; // 2 minutes in seconds
         this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, `Time: ${timeLeft}s`, {
@@ -211,7 +254,6 @@ isNearZone(player, zone, radius = 80) {
         this.pickUpIngredient(player, ingredient);
         this.placedIngredients[zoneKey] = this.placedIngredients[zoneKey].filter(ing => ing !== ingredient);
         ingredient.gameObject.destroy();
-        ingredient.label.destroy();
         if (ingredient.timeText) ingredient.timeText.destroy();
     }
 
@@ -227,16 +269,7 @@ isNearZone(player, zone, radius = 80) {
                     player.y - 20,
                     textureKey  // Use the same texture as the source ingredient
                 ).setInteractive()
-                .setScale(0.3),
-                label: this.add.text(
-                    player.x + player.width / 2,
-                    player.y - 30,
-                    ingredient.name,
-                    {
-                        fontSize: '12px',
-                        fill: '#000'
-                    }
-                ).setOrigin(0.5)
+                .setScale(0.3)
             };
     
             player.heldIngredient = newIngredient;
@@ -256,7 +289,6 @@ isNearZone(player, zone, radius = 80) {
             const newIngredient = { 
                 name: player.heldIngredient.name,
                 gameObject: player.heldIngredient.gameObject,
-                label: player.heldIngredient.label,
                 x: dropPosition.x, 
                 y: dropPosition.y
             };
@@ -277,8 +309,10 @@ isNearZone(player, zone, radius = 80) {
                     callback: () => {
                         timeLeft--;
                         if (timeLeft <= 0) {
+                            this.score -= 10;
+                            this.scoreText.setText(`Score: ${this.score}`);
+                
                             newIngredient.gameObject.destroy();
-                            newIngredient.label.destroy();
                             newIngredient.timeText.destroy();
                             const index = this.placedIngredients[zoneKey].indexOf(newIngredient);
                             if (index > -1) {
@@ -298,8 +332,12 @@ isNearZone(player, zone, radius = 80) {
         }
     
         player.heldIngredient.gameObject.setPosition(dropPosition.x, dropPosition.y);
-        player.heldIngredient.label.setPosition(dropPosition.x, dropPosition.y + 40);
         player.heldIngredient = null;
+
+        if (zoneKey === 'cookingStation' && this.checkRecipeCompletion()) {
+            this.completeRecipe();
+        }
+    
         return true;
     }
     
@@ -429,6 +467,17 @@ completeCutting() {
     
     handleChefInteraction() {
     if (!this.chef.heldIngredient) {
+        if (this.cookingResult && this.isNearZone(this.chef, this.zones.cookingStation)) {
+            this.chef.heldIngredient = {
+                name: this.currentRecipe.name,
+                gameObject: this.cookingResult
+            };
+            this.cookingResult = null;
+
+            // Add points for picking up the meal
+            this.score += this.currentRecipe.points;
+            this.scoreText.setText(`Score: ${this.score}`);
+        }
         // Try pickup from divider
         for (const ingredient of this.placedIngredients.divider) {
             if (this.isNearIngredient(this.chef, ingredient)) {
@@ -447,10 +496,17 @@ completeCutting() {
         if (this.isNearZone(this.chef, this.zones.cookingStation)) {
             this.dropOffIngredient(this.chef, this.zones.cookingStation);
         } else if (this.isNearZone(this.chef, this.zones.leftTrash)) {
+            this.score -= 10;
+            this.scoreText.setText(`Score: ${this.score}`);
             this.chef.heldIngredient.gameObject.destroy();
-            this.chef.heldIngredient.label.destroy();
             this.chef.heldIngredient = null;
+        } else if (this.isNearZone(this.chef, this.zones.readyTable)) {
+            // Drop off completed meal at ready table
+            if (this.chef.heldIngredient && this.chef.heldIngredient.name === this.currentRecipe.name) {
+                this.dropOffAtReadyTable();
+            }
         }
+        
     }
 }
 
@@ -481,12 +537,115 @@ handleSousChefInteraction() {
         if (this.isNearZone(this.sousChef, this.zones.divider)) {
             this.dropOffIngredient(this.sousChef, this.zones.divider);
         } else if (this.isNearZone(this.sousChef, this.zones.rightTrash)) {
+            this.score -= 10;
+            this.scoreText.setText(`Score: ${this.score}`);
             this.sousChef.heldIngredient.gameObject.destroy();
-            this.sousChef.heldIngredient.label.destroy();
             this.sousChef.heldIngredient = null;
         }
     }
+    
 }
+
+    checkRecipeCompletion() {
+        if (!this.currentRecipe) return false;
+
+        const requiredIngredients = this.currentRecipe.ingredients;
+        const placedIngredients = this.placedIngredients.cookingStation.map(ing => ing.name);
+
+        // Check if all required ingredients are in the cooking station
+        return requiredIngredients.every(ingredient => placedIngredients.includes(ingredient));
+    }
+
+    completeRecipe() {
+        // Show completed meal image
+        this.cookingResult = this.add.image(
+            this.zones.cookingStation.x + this.zones.cookingStation.width / 2,
+            this.zones.cookingStation.y + this.zones.cookingStation.height / 2,
+            this.currentRecipe.result
+        )
+        .setOrigin(0.5)
+        .setScale(0.5);
+    
+        // Clear ingredients from the cooking station
+        this.placedIngredients.cookingStation.forEach(ingredient => {
+            ingredient.gameObject.destroy();
+        });
+        this.placedIngredients.cookingStation = [];
+    
+        // Add delay penalty if the meal isn't picked up
+        const penaltyTime = 10; // 10 seconds to pick up
+        let penaltyCounter = penaltyTime;
+    
+        const penaltyText = this.add.text(
+            this.cookingResult.x,
+            this.cookingResult.y - 50,
+            `${penaltyCounter}s`,
+            { fontSize: '20px', fill: '#ff0000' }
+        ).setOrigin(0.5);
+    
+        const penaltyTimer = this.time.addEvent({
+            delay: 1000, // 1-second interval
+            callback: () => {
+                penaltyCounter--;
+                penaltyText.setText(`${penaltyCounter}s`);
+                if (penaltyCounter <= 0) {
+                    // Deduct points for delay
+                    this.score -= 20;
+                    this.scoreText.setText(`Score: ${this.score}`);
+    
+                    // Destroy meal and penalty timer
+                    penaltyText.destroy();
+                    this.cookingResult.destroy();
+                    this.cookingResult = null;
+    
+                    penaltyTimer.remove();
+                }
+            },
+            repeat: penaltyTime - 1
+        });
+    
+        // Pick a new recipe
+        const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
+        this.currentRecipe = this.recipes[recipeIndex];
+        this.recipeDisplay.setTexture(this.currentRecipe.image);
+    }
+
+    dropOffAtReadyTable() {
+        const meal = this.chef.heldIngredient;
+    
+        // Place the meal at the ready table
+        meal.gameObject.setPosition(
+            this.zones.readyTable.x + this.zones.readyTable.width / 2,
+            this.zones.readyTable.y + this.zones.readyTable.height / 2
+        );
+    
+        this.tweens.add({
+            targets: meal.gameObject,
+            alpha: 0,
+            duration: 3000, // Fade out over 3 seconds
+            onComplete: () => {
+                meal.gameObject.destroy(); // Remove the meal after fade-out
+            }
+        });
+    
+        // Add 40 points to the score
+        this.score += 40;
+        this.scoreText.setText(`Score: ${this.score}`);
+    
+        // Set a timer to remove the meal from the ready table
+        this.time.addEvent({
+            delay: 3000, // Meal disappears after 3 seconds
+            callback: () => {
+                meal.gameObject.destroy();
+            }
+        });
+    
+        // Clear the chef's held ingredient
+        this.chef.heldIngredient = null;
+    }
+    
+    
+
 
     update() {
         // Chef movement: Prevent passing the divider but allow free movement on the left side
@@ -522,11 +681,9 @@ handleSousChefInteraction() {
         // Update held ingredients' positions for both chef and sous-chef
         if (this.chef.heldIngredient) {
             this.chef.heldIngredient.gameObject.setPosition(this.chef.x + this.chef.width / 2, this.chef.y - 20);
-            this.chef.heldIngredient.label.setPosition(this.chef.x + this.chef.width / 2, this.chef.y - 30);
         }
         if (this.sousChef.heldIngredient) {
             this.sousChef.heldIngredient.gameObject.setPosition(this.sousChef.x + this.sousChef.width / 2, this.sousChef.y - 20);
-            this.sousChef.heldIngredient.label.setPosition(this.sousChef.x + this.sousChef.width / 2, this.sousChef.y - 30);
         }
         if (this.isCutting && this.cuttingProgress && this.cuttingTimer) {
             const progress = 1 - this.cuttingTimer.getProgress(); // Get remaining time percentage

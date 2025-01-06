@@ -52,7 +52,15 @@ export class Preloader extends Scene
         this.load.image('chipsandguac_recipe', 'chipsandguac_recipe.png');
         this.load.image('guacamole_recipe', 'guacamole_recipe.png');
         this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
-        this.load.image('tacos_recipe', 'tacos_recipe.png');
+        this.load.image('taco_recipe', 'tacos_recipe.png');
+
+        this.load.setPath('src/game/assets/meals/');
+
+        this.load.image('guacamole_complete', 'meal1Guacamole.png');
+        this.load.image('chipsAndGuac_complete', 'meal5Chipsandguac.png');
+        this.load.image('burrito_complete', 'meal4Burrito.png');
+        this.load.image('quessadilla_complete', 'meal2Quessadilla.png');
+        this.load.image('taco_complete', 'meal3Tacos.png');
 
         this.load.setPath('src/game/assets/kitchen_assets/');
 
