@@ -27,8 +27,8 @@ export class OvercookedGame extends Scene {
         this.zones = {
             sidebar: { x: width - 100, y: 0, width: 100, height: height },
             divider: { x: dividerX, y: 0, width: dividerWidth, height: height},
-            cookingStation: { x: 0, y: 0, width: 200, height: 200 },
-            cuttingBoard: { x: width - 400, y: 0, width: 200, height: 200 },
+            cookingStation: { x: 0, y: 0, width: 439, height: 120 },
+            cuttingBoard: { x: dividerX + 150, y: 0, width: 336, height: 120 },
             leftTrash: { x: 50, y: height - 100, width: 80, height: 80 },
             rightTrash: { x: width - 130, y: height - 100, width: 80, height: 80 }
         };

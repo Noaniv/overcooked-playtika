@@ -61,6 +61,8 @@ export class Preloader extends Scene
         this.load.image('divider', 'divider.png');
         this.load.image('readyTable', 'readyTable.png');
         this.load.image('sideBar', 'sideBar.png');
+        this.load.image('trash', 'trashCan.png');
+
 
         this.load.setPath('src/game/assets/characters/');
 
