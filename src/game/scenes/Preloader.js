@@ -53,6 +53,19 @@ export class Preloader extends Scene
         this.load.image('guacamole_recipe', 'guacamole_recipe.png');
         this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
         this.load.image('tacos_recipe', 'tacos_recipe.png');
+
+        this.load.setPath('src/game/assets/kitchen_assets/');
+
+        this.load.image('cookingStation', 'cookingStation.png');
+        this.load.image('cuttingBoard', 'cuttingBoard.png');
+        this.load.image('divider', 'divider.png');
+        this.load.image('readyTable', 'readyTable.png');
+        this.load.image('sideBar', 'sideBar.png');
+
+        this.load.setPath('src/game/assets/characters/');
+
+        this.load.image('ChefImage', 'ChefImage.jpeg');
+        this.load.image('Sous_chefImage', 'Sous_chefImage.jpeg');
     }
 
     

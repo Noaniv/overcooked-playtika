@@ -33,6 +33,7 @@ export class OvercookedGame extends Scene {
             rightTrash: { x: width - 130, y: height - 100, width: 80, height: 80 }
         };
 
+
         const cuttingBoardZone = this.add.rectangle(this.zones.cuttingBoard.x, this.zones.cuttingBoard.y, this.zones.cuttingBoard.width, this.zones.cuttingBoard.height, 0x8B4513)
             .setOrigin(0)
             .setInteractive();
@@ -49,6 +50,8 @@ export class OvercookedGame extends Scene {
                 case 'cuttingBoard': color = 0x8B4513; break;
                 default: color = 0x808080;
             }
+
+            
 
             const rect = this.add.rectangle(zone.x, zone.y, zone.width, zone.height, color)
                 .setOrigin(0)
