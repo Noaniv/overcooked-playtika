@@ -212,6 +212,9 @@ Object.entries(this.zones).forEach(([key, zone]) => {
 
     // Helper function for checking proximity (adjusted for full height interaction)
 isNearZone(player, zone, radius = 80) {
+    if (zone === this.zones.cuttingBoard) {
+        radius = 50; // Much smaller radius for cutting board interactions
+    }
     const playerCenterX = player.x ;
     const playerCenterY = player.y ;
 
@@ -400,59 +403,88 @@ isNearZone(player, zone, radius = 80) {
         return timerEvent;
     }
 
-  // Refactored startCuttingTimer using the helper function
-  startCuttingTimer() {
-    if (this.isCutting) return; // Don't start if already cutting
+    startCuttingTimer() {
+        if (this.isCutting) return;
+        
+        // Check if player is near cutting board
+        if (!this.isNearZone(this.sousChef, this.zones.cuttingBoard)) {
+            return;
+        }
 
-    this.isCutting = true;
-    this.spaceKeyIsDown = true;
-    
+        const playerCenter = {
+            x: this.sousChef.x + this.sousChef.width / 2,
+            y: this.sousChef.y + this.sousChef.height / 2
+        };
+        
+        const boardCenter = {
+            x: this.zones.cuttingBoard.x + this.zones.cuttingBoard.width / 2,
+            y: this.zones.cuttingBoard.y + this.zones.cuttingBoard.height / 2
+        };
+        
+        // Calculate exact distance to board center
+        const distance = Phaser.Math.Distance.Between(
+            playerCenter.x,
+            playerCenter.y,
+            boardCenter.x,
+            boardCenter.y
+        );
+        
+        // Only allow cutting if very close (within 40 pixels)
+        if (distance > 40) {
+            return;
+        }
 
-    // Create a colored progress bar (full width at start)
-    this.cuttingProgress = this.add.rectangle(
-        this.zones.cuttingBoard.x + this.zones.cuttingBoard.width / 2,
-        this.zones.cuttingBoard.y + this.zones.cuttingBoard.height + 20,
-        150, // initial width (full bar size)
-        10,  // height of the progress bar
-        0x00ff00 // green color for progress
-    ).setOrigin(0.5, 0);
+        this.isCutting = true;
+        this.spaceKeyIsDown = true;
+        
+        // Create a colored progress bar under the player
+        this.cuttingProgress = this.add.rectangle(
+            this.sousChef.x + this.sousChef.width / 2,
+            this.sousChef.y + this.sousChef.height + 10,
+            150,
+            10,
+            0x00ff00
+        ).setOrigin(0.5, 0);
 
-    // Add some corner rounding to the progress bar
-    this.cuttingProgress.setStrokeStyle(2, 0x000000); // Add a black border for better visibility
+        // Add some corner rounding to the progress bar
+        this.cuttingProgress.setStrokeStyle(2, 0x000000);
 
-    // Smooth transition for the progress bar width decreasing using tweens
-    this.tweens.add({
-        targets: this.cuttingProgress,
-        width: 0,  // final width (empty bar)
-        duration: 5000, // 5 seconds duration
-        ease: 'Linear', // smooth progression
-        onComplete: () => this.completeCutting(), // when the timer completes
-    });
+        // Smooth transition for the progress bar width decreasing using tweens
+        this.tweens.add({
+            targets: this.cuttingProgress,
+            width: 0,
+            duration: 5000,
+            ease: 'Linear',
+            onComplete: () => this.completeCutting(),
+        });
 
-    // Create and start the timer using the helper function
-    this.cuttingTimer = createTimer.call(this, 5000, () => this.completeCutting());
-}
-    
-completeCutting() {
-    if (!this.spaceKeyIsDown) return;
-    
-    const oldImage = this.sousChef.heldIngredient.gameObject;
-    const ingredientName = this.sousChef.heldIngredient.name;
-    
-    const newImage = this.add.image(
-        oldImage.x,
-        oldImage.y,
-        `${ingredientName.toLowerCase()}2`
-    ).setInteractive()
-    .setScale(0.3);
-    
-    // Update the held ingredient with the new image
-    this.sousChef.heldIngredient.gameObject.destroy();
-    this.sousChef.heldIngredient.gameObject = newImage;
-    
-    this.cleanupCuttingTimer();
-}
-    
+        // Create and start the timer
+        this.cuttingTimer = this.time.addEvent({
+            delay: 5000,
+            callback: () => this.completeCutting(),
+            loop: false
+        });
+    }
+
+    completeCutting() {
+        if (!this.spaceKeyIsDown) return;
+        
+        const oldImage = this.sousChef.heldIngredient.gameObject;
+        const ingredientName = this.sousChef.heldIngredient.name;
+        
+        const newImage = this.add.image(
+            oldImage.x,
+            oldImage.y,
+            `${ingredientName.toLowerCase()}2`
+        ).setInteractive()
+        .setScale(0.3);
+        
+        this.sousChef.heldIngredient.gameObject.destroy();
+        this.sousChef.heldIngredient.gameObject = newImage;
+        
+        this.cleanupCuttingTimer();
+    }
+
     cleanupCuttingTimer() {
         if (this.cuttingProgress) {
             this.cuttingProgress.destroy();
@@ -467,9 +499,13 @@ completeCutting() {
     
     handleChefInteraction() {
     if (!this.chef.heldIngredient) {
-        if (this.cookingResult && this.isNearZone(this.chef, this.zones.cookingStation)) {
+         // Check for completed meal pickup
+         if (this.cookingResult && this.isNearZone(this.chef, this.zones.cookingStation)) {
+            // Store current recipe name before cycling to next recipe
+            const completedRecipeName = this.currentRecipe.name;
+            
             this.chef.heldIngredient = {
-                name: this.currentRecipe.name,
+                name: completedRecipeName,
                 gameObject: this.cookingResult
             };
             this.cookingResult = null;
@@ -477,6 +513,13 @@ completeCutting() {
             // Add points for picking up the meal
             this.score += this.currentRecipe.points;
             this.scoreText.setText(`Score: ${this.score}`);
+
+            // Immediately cycle to next recipe
+            const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
+            this.currentRecipe = this.recipes[recipeIndex];
+            if (this.recipeDisplay && this.recipeDisplay.active) {
+                this.recipeDisplay.setTexture(this.currentRecipe.image);
+            }
         }
         // Try pickup from divider
         for (const ingredient of this.placedIngredients.divider) {
@@ -511,8 +554,15 @@ completeCutting() {
 }
 
 handleSousChefInteraction() {
-    if (this.sousChef.heldIngredient && this.isNearZone(this.sousChef, this.zones.cuttingBoard)) {
-        if (!this.isCutting) this.startCuttingTimer();
+    // Check if sous chef is holding an ingredient and very close to cutting board
+    const isVeryClosed = this.isNearZone(this.sousChef, this.zones.cuttingBoard);
+    if (this.sousChef.heldIngredient && isVeryClosed) {
+        if (!this.isCutting) {
+            // Double check proximity before starting cutting
+            if (isVeryClosed) {
+                this.startCuttingTimer();
+            }
+        }
         return;
     }
 
@@ -611,37 +661,37 @@ handleSousChefInteraction() {
     }
 
     dropOffAtReadyTable() {
+        if (!this.chef.heldIngredient) return;
+        
         const meal = this.chef.heldIngredient;
+        
+        // Clear the chef's held ingredient before the tween
+        this.chef.heldIngredient = null;
     
         // Place the meal at the ready table
-        meal.gameObject.setPosition(
-            this.zones.readyTable.x + this.zones.readyTable.width / 2,
-            this.zones.readyTable.y + this.zones.readyTable.height / 2
-        );
+        if (meal.gameObject && meal.gameObject.active) {
+            meal.gameObject.setPosition(
+                this.zones.readyTable.x + this.zones.readyTable.width / 2,
+                this.zones.readyTable.y + this.zones.readyTable.height / 2
+            );
+        
+            this.tweens.add({
+                targets: meal.gameObject,
+                alpha: 0,
+                duration: 1500, // Reduced from 3000 to make it faster
+                onComplete: () => {
+                    if (meal.gameObject && meal.gameObject.active) {
+                        meal.gameObject.destroy();
+                    }
+                }
+            });
+        }
     
-        this.tweens.add({
-            targets: meal.gameObject,
-            alpha: 0,
-            duration: 3000, // Fade out over 3 seconds
-            onComplete: () => {
-                meal.gameObject.destroy(); // Remove the meal after fade-out
-            }
-        });
-    
-        // Add 40 points to the score
+        // Add points to the score
         this.score += 40;
-        this.scoreText.setText(`Score: ${this.score}`);
-    
-        // Set a timer to remove the meal from the ready table
-        this.time.addEvent({
-            delay: 3000, // Meal disappears after 3 seconds
-            callback: () => {
-                meal.gameObject.destroy();
-            }
-        });
-    
-        // Clear the chef's held ingredient
-        this.chef.heldIngredient = null;
+        if (this.scoreText && this.scoreText.active) {
+            this.scoreText.setText(`Score: ${this.score}`);
+        }
     }
     
     
@@ -649,7 +699,7 @@ handleSousChefInteraction() {
 
     update() {
         // Chef movement: Prevent passing the divider but allow free movement on the left side
-        const speed = 8;
+        const speed = 5;
 
         if (this.keys.left.isDown && this.chef.x > 0) {
             this.chef.x -= speed;  // Chef can move left but can't go off-screen
