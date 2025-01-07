@@ -10,7 +10,6 @@ export class Preloader extends Scene
     init ()
     {
         //  We loaded this image in our Boot Scene, so we can display it here
-        this.add.image(512, 384, 'background');
 
         //  A simple progress bar. This is the outline of the bar.
         this.add.rectangle(512, 384, 468, 32).setStrokeStyle(1, 0xffffff);
@@ -30,7 +29,7 @@ export class Preloader extends Scene
     preload ()
     {
         //  Load the assets for the game - Replace with your own assets
-        this.load.setPath('src/game/assets/raw_ingredients/');
+        this.load.setPath('assets/raw_ingredients/');
 
         this.load.image('avocado1', 'avocado1.png');
         this.load.image('cheese1', 'cheese1.png');
@@ -38,7 +37,7 @@ export class Preloader extends Scene
         this.load.image('tomato1', 'tomato1.png');
         this.load.image('tortilla1', 'tortilla1.png');
 
-        this.load.setPath('src/game/assets/prepped_ingredients/');
+        this.load.setPath('assets/prepped_ingredients/');
 
         this.load.image('avocado2', 'avocado2.png');
         this.load.image('cheese2', 'cheese2.png');
@@ -46,7 +45,7 @@ export class Preloader extends Scene
         this.load.image('tomato2', 'tomato2.png');
         this.load.image('tortilla2', 'tortilla2.png');
 
-        this.load.setPath('src/game/assets/recipes/');
+        this.load.setPath('assets/recipes/');
 
         this.load.image('burrito_recipe', 'burrito_recipe.png');
         this.load.image('chipsandguac_recipe', 'chipsandguac_recipe.png');
@@ -54,7 +53,7 @@ export class Preloader extends Scene
         this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
         this.load.image('taco_recipe', 'tacos_recipe.png');
 
-        this.load.setPath('src/game/assets/meals/');
+        this.load.setPath('assets/meals/');
 
         this.load.image('guacamole_complete', 'meal1Guacamole.png');
         this.load.image('chipsAndGuac_complete', 'meal5Chipsandguac.png');
@@ -62,7 +61,7 @@ export class Preloader extends Scene
         this.load.image('quessadilla_complete', 'meal2Quessadilla.png');
         this.load.image('taco_complete', 'meal3Tacos.png');
 
-        this.load.setPath('src/game/assets/kitchen_assets/');
+        this.load.setPath('assets/kitchen_assets/');
 
         this.load.image('cookingStation', 'cookingStation.png');
         this.load.image('cuttingBoard', 'cuttingBoard.png');
@@ -72,12 +71,12 @@ export class Preloader extends Scene
         this.load.image('trash', 'trashCan.png');
 
 
-        this.load.setPath('src/game/assets/characters/');
+        this.load.setPath('assets/characters/');
 
         this.load.image('ChefImage', 'ChefImage.jpeg');
         this.load.image('Sous_chefImage', 'Sous_chefImage.jpeg');
 
-        this.load.setPath('src/game/assets/scenery/');
+        this.load.setPath('assets/scenery/');
 
         this.load.image('logo', 'favicon.png');
         this.load.image('background', 'background.jpg');
@@ -93,6 +92,8 @@ export class Preloader extends Scene
         //  For example, you can define global animations here, so we can use them in other scenes.
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
+        this.add.image(512, 384, 'background');
+
         this.scene.start('MainMenu');
     }
 }
