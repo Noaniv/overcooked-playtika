@@ -176,42 +176,47 @@ Object.entries(this.zones).forEach(([key, zone]) => {
             }
         });
 
+
         this.startGameTimer();
     }
     startGameTimer() {
-        let timeLeft = 120; // 2 minutes in seconds
-        this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, `Time: ${timeLeft}s`, {
+        let timeLeft = 60; // 2 minutes in seconds
+        this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, 'Time: 02:00', {
             fontSize: '32px',
             fill: '#000',
             backgroundColor: '#ffffff',
-            padding: { x: 10, y: 5 }
+            padding: { x: 10, y: 5 },
         }).setOrigin(0.5);
         this.scoreText = this.add.text(this.scale.width / 2, this.scale.height - 80, `Score: ${this.score}`, {
             fontSize: '32px',
             fill: '#000',
             backgroundColor: '#ffffff',
-            padding: { x: 10, y: 5 }
+            padding: { x: 10, y: 5 },
         }).setOrigin(0.5);
     
         this.gameTimer = this.time.addEvent({
             delay: 1000,
             callback: () => {
                 timeLeft--;
-                this.timeText.setText(`Time: ${timeLeft}s`);
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                const formattedTime = `Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+                this.timeText.setText(formattedTime);
                 if (timeLeft <= 0) {
                     this.endGame();
                 }
             },
-            repeat: 120
+            repeat: 120,
         });
     }
     
-    endGame() {
-        this.scene.start('GameOver', { score: this.score });
+    
+    endGame(){
+    this.scene.start('GameOver', { score: this.score });
     }    
 
     // Helper function for checking proximity (adjusted for full height interaction)
-isNearZone(player, zone, radius = 80) {
+isNearZone(player, zone, radius = 60) {
     if (zone === this.zones.cuttingBoard) {
         radius = 50; // Much smaller radius for cutting board interactions
     }
@@ -410,7 +415,7 @@ isNearZone(player, zone, radius = 80) {
         if (!this.isNearZone(this.sousChef, this.zones.cuttingBoard)) {
             return;
         }
-
+    
         const playerCenter = {
             x: this.sousChef.x + this.sousChef.width / 2,
             y: this.sousChef.y + this.sousChef.height / 2
@@ -421,7 +426,7 @@ isNearZone(player, zone, radius = 80) {
             y: this.zones.cuttingBoard.y + this.zones.cuttingBoard.height / 2
         };
         
-        // Calculate exact distance to board center
+        // Distance check
         const distance = Phaser.Math.Distance.Between(
             playerCenter.x,
             playerCenter.y,
@@ -429,172 +434,515 @@ isNearZone(player, zone, radius = 80) {
             boardCenter.y
         );
         
-        // Only allow cutting if very close (within 40 pixels)
-        if (distance > 40) {
-            return;
-        }
-
+        if (distance > 40) return;
+    
         this.isCutting = true;
         this.spaceKeyIsDown = true;
+    
+        // Create timer group to manage all elements
+        this.timerGroup = this.add.group();
+        const timerY = this.sousChef.y + this.sousChef.height + 15;
         
-        // Create a colored progress bar under the player
+        // Constants for bar dimensions
+        const BAR_WIDTH = 150;
+        const BAR_HEIGHT = 12;
+        
+        // Background bar (dark border)
+        this.timerBg = this.add.rectangle(
+            this.sousChef.x - (BAR_WIDTH / 2),
+            timerY,
+            BAR_WIDTH,
+            BAR_HEIGHT,
+            0x333333
+        ).setOrigin(0, 0.5);
+        this.timerGroup.add(this.timerBg);
+        
+        // Progress bar background
+        this.progressBg = this.add.rectangle(
+            this.sousChef.x - (BAR_WIDTH / 2),
+            timerY,
+            BAR_WIDTH,
+            BAR_HEIGHT,
+            0x005500
+        ).setOrigin(0, 0.5);
+        this.timerGroup.add(this.progressBg);
+    
+        // Main progress bar
         this.cuttingProgress = this.add.rectangle(
-            this.sousChef.x + this.sousChef.width / 2,
-            this.sousChef.y + this.sousChef.height + 10,
-            150,
-            10,
+            this.sousChef.x - (BAR_WIDTH / 2),
+            timerY,
+            BAR_WIDTH,
+            BAR_HEIGHT,
             0x00ff00
-        ).setOrigin(0.5, 0);
-
-        // Add some corner rounding to the progress bar
-        this.cuttingProgress.setStrokeStyle(2, 0x000000);
-
-        // Smooth transition for the progress bar width decreasing using tweens
+        ).setOrigin(0, 0.5);
+        this.timerGroup.add(this.cuttingProgress);
+    
+        // Timer text
+        this.timerText = this.add.text(
+            this.sousChef.x,
+            timerY - 25,
+            '5.0',
+            {
+                fontSize: '24px',
+                fontWeight: 'bold',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        ).setOrigin(0.5);
+        this.timerGroup.add(this.timerText);
+    
+        // "Cutting..." text
+        this.cuttingText = this.add.text(
+            this.sousChef.x,
+            timerY - 50,
+            'Cutting...',
+            {
+                fontSize: '20px',
+                fill: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 3
+            }
+        ).setOrigin(0.5);
+        this.timerGroup.add(this.cuttingText);
+    
+        // Cutting animation (knife icon or simple flash)
+        const cutIndicator = this.add.rectangle(
+            this.sousChef.x,
+            timerY,
+            20,
+            20,
+            0xffffff
+        ).setAlpha(0);
+        this.timerGroup.add(cutIndicator);
+    
+        // Cutting indicator animation
+        this.tweens.add({
+            targets: cutIndicator,
+            alpha: 0.5,
+            yoyo: true,
+            duration: 200,
+            repeat: 24
+        });
+    
+        // Progress bar animation
         this.tweens.add({
             targets: this.cuttingProgress,
             width: 0,
             duration: 5000,
-            ease: 'Linear',
-            onComplete: () => this.completeCutting(),
+            ease: 'Linear'
         });
-
-        // Create and start the timer
+    
+        // Store timeLeft in class scope
+        this.timeLeft = 5.0;
+        
+        // Store the countdown timer reference
+        this.countdownTimer = this.time.addEvent({
+            delay: 100,
+            callback: () => {
+                if (!this.timerText || !this.isCutting) {
+                    // If text is destroyed or we're not cutting anymore, remove the timer
+                    if (this.countdownTimer) {
+                        this.countdownTimer.remove();
+                        this.countdownTimer = null;
+                    }
+                    return;
+                }
+                
+                this.timeLeft -= 0.1;
+                if (this.timeLeft > 0) {
+                    this.timerText.setText(this.timeLeft.toFixed(1));
+                }
+            },
+            repeat: 49
+        });
+    
+        // Main cutting timer
         this.cuttingTimer = this.time.addEvent({
             delay: 5000,
-            callback: () => this.completeCutting(),
+            callback: () => {
+                // Remove the countdown timer first
+                if (this.countdownTimer) {
+                    this.countdownTimer.remove();
+                    this.countdownTimer = null;
+                }
+                
+                // Then cleanup visual elements
+                this.cleanupCuttingTimer();
+                
+                // Finally complete the cutting
+                this.completeCutting();
+            },
             loop: false
         });
-    }
-
-    completeCutting() {
-        if (!this.spaceKeyIsDown) return;
-        
-        const oldImage = this.sousChef.heldIngredient.gameObject;
-        const ingredientName = this.sousChef.heldIngredient.name;
-        
-        const newImage = this.add.image(
-            oldImage.x,
-            oldImage.y,
-            `${ingredientName.toLowerCase()}2`
-        ).setInteractive()
-        .setScale(0.3);
-        
-        this.sousChef.heldIngredient.gameObject.destroy();
-        this.sousChef.heldIngredient.gameObject = newImage;
-        
-        this.cleanupCuttingTimer();
+    
+        // Pulse animation for cutting text
+        this.tweens.add({
+            targets: this.cuttingText,
+            scaleX: 1.1,
+            scaleY: 1.1,
+            duration: 500,
+            yoyo: true,
+            repeat: -1
+        });
     }
 
     cleanupCuttingTimer() {
-        if (this.cuttingProgress) {
-            this.cuttingProgress.destroy();
-            this.cuttingProgress = null;
+        // First remove timers
+        if (this.countdownTimer) {
+            this.countdownTimer.remove();
+            this.countdownTimer = null;
         }
         if (this.cuttingTimer) {
             this.cuttingTimer.remove();
             this.cuttingTimer = null;
         }
-        this.isCutting = false;
+    
+        // Then kill tweens
+        this.tweens.killTweensOf(this.cuttingText);
+        this.tweens.killTweensOf(this.cuttingProgress);
+    
+        // Then destroy visual elements
+        if (this.timerText) {
+            this.timerText.destroy();
+            this.timerText = null;
+        }
+        if (this.cuttingText) {
+            this.cuttingText.destroy();
+            this.cuttingText = null;
+        }
+        if (this.cuttingProgress) {
+            this.cuttingProgress.destroy();
+            this.cuttingProgress = null;
+        }
+        if (this.progressBg) {
+            this.progressBg.destroy();
+            this.progressBg = null;
+        }
+        if (this.timerBg) {
+            this.timerBg.destroy();
+            this.timerBg = null;
+        }
+    
+        // Finally clean up the group
+        if (this.timerGroup) {
+            this.timerGroup.clear(true, true);
+            this.timerGroup.destroy();
+            this.timerGroup = null;
+        }
+        // Reset state flags
+    this.isCutting = false;
+    this.spaceKeyIsDown = false;
+    this.timeLeft = 0;
+}
+
+    completeCutting() {
+    try {
+        // Store ingredient info before cleanup
+        if (!this.sousChef.heldIngredient) {
+            console.log('No held ingredient to transform');
+            return;
+        }
+
+        const oldImage = this.sousChef.heldIngredient.gameObject;
+        const ingredientName = this.sousChef.heldIngredient.name;
+        const oldX = oldImage.x;
+        const oldY = oldImage.y;
+
+        // Create new image first
+        const newImage = this.add.image(
+            oldX,
+            oldY,
+            `${ingredientName.toLowerCase()}2`
+        )
+        .setInteractive()
+        .setScale(0.3);
+
+        // Update the held ingredient reference
+        oldImage.destroy();
+        this.sousChef.heldIngredient.gameObject = newImage;
+
+        // Clean up timers and UI after transformation is complete
+        this.cleanupCuttingTimer();
+        
+        console.log('Cutting completed successfully:', {
+            ingredientName,
+            newTexture: `${ingredientName.toLowerCase()}2`,
+            position: { x: oldX, y: oldY }
+        });
+    } catch (error) {
+        console.error('Error in completeCutting:', error);
+        // Log more details about the state
+        console.error('Debug state:', {
+            hasHeldIngredient: !!this.sousChef.heldIngredient,
+            ingredientName: this.sousChef.heldIngredient?.name,
+            spaceKeyIsDown: this.spaceKeyIsDown
+        });
     }
+}
+    // cleanupCuttingTimer() {
+    //     if (this.cuttingProgress) {
+    //         this.cuttingProgress.destroy();
+    //         this.cuttingProgress = null;
+    //     }
+    //     if (this.cuttingTimer) {
+    //         this.cuttingTimer.remove();
+    //         this.cuttingTimer = null;
+    //     }
+    //     this.isCutting = false;
+    // }
     
     handleChefInteraction() {
-    if (!this.chef.heldIngredient) {
-         // Check for completed meal pickup
-         if (this.cookingResult && this.isNearZone(this.chef, this.zones.cookingStation)) {
-            // Store current recipe name before cycling to next recipe
-            const completedRecipeName = this.currentRecipe.name;
-            
-            this.chef.heldIngredient = {
-                name: completedRecipeName,
-                gameObject: this.cookingResult
-            };
-            this.cookingResult = null;
-
-            // Add points for picking up the meal
-            this.score += this.currentRecipe.points;
-            this.scoreText.setText(`Score: ${this.score}`);
-
-            // Immediately cycle to next recipe
-            const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
-            this.currentRecipe = this.recipes[recipeIndex];
-            if (this.recipeDisplay && this.recipeDisplay.active) {
-                this.recipeDisplay.setTexture(this.currentRecipe.image);
-            }
-        }
-        // Try pickup from divider
-        for (const ingredient of this.placedIngredients.divider) {
-            if (this.isNearIngredient(this.chef, ingredient)) {
-                this.handleIngredientPickup(this.chef, ingredient, 'divider');
-                break;
-            }
-        }
-        // Try pickup from cooking station
         if (!this.chef.heldIngredient) {
-            const ingredient = this.placedIngredients.cookingStation[0];
-            if (ingredient && this.isNearZone(this.chef, this.zones.cookingStation)) {
-                this.handleIngredientPickup(this.chef, ingredient, 'cookingStation');
-            }
+            this.handleChefPickupAttempt();
+        } else {
+            this.handleChefDropOffAttempt();
         }
-    } else {
+    }
+
+    handleChefPickupAttempt() {
+        // First priority: Check for completed meal pickup
+        if (this.cookingResult && this.isNearZone(this.chef, this.zones.cookingStation)) {
+            this.pickupCompletedMeal();
+            return;
+        }
+
+        // Second priority: Check divider ingredients
+        const dividerIngredient = this.placedIngredients.divider.find(
+            ingredient => this.isNearIngredient(this.chef, ingredient)
+        );
+        if (dividerIngredient) {
+            this.handleIngredientPickup(this.chef, dividerIngredient, 'divider');
+            return;
+        }
+
+        // Last priority: Check cooking station
+        const cookingIngredient = this.placedIngredients.cookingStation[0];
+        if (cookingIngredient && this.isNearZone(this.chef, this.zones.cookingStation)) {
+            this.handleIngredientPickup(this.chef, cookingIngredient, 'cookingStation');
+        }
+    }
+
+    handleChefDropOffAttempt() {
         if (this.isNearZone(this.chef, this.zones.cookingStation)) {
             this.dropOffIngredient(this.chef, this.zones.cookingStation);
         } else if (this.isNearZone(this.chef, this.zones.leftTrash)) {
-            this.score -= 10;
-            this.scoreText.setText(`Score: ${this.score}`);
-            this.chef.heldIngredient.gameObject.destroy();
-            this.chef.heldIngredient = null;
+            this.handleTrashDisposal(this.chef);
         } else if (this.isNearZone(this.chef, this.zones.readyTable)) {
             // Drop off completed meal at ready table
-            if (this.chef.heldIngredient && this.chef.heldIngredient.name === this.currentRecipe.name) {
+            if (this.chef.heldIngredient.name === this.currentRecipe.name) {
                 this.dropOffAtReadyTable();
             }
         }
+    }
+
+    pickupCompletedMeal() {
+        // Cancel penalty timer
+        if (this.pickupTimer) {
+            this.pickupTimer.remove();
+        }
+
+        const completedRecipeName = this.currentRecipe.name;
         
-    }
-}
+        this.chef.heldIngredient = {
+            name: completedRecipeName,
+            gameObject: this.cookingResult
+        };
+        this.cookingResult = null;
 
-handleSousChefInteraction() {
-    // Check if sous chef is holding an ingredient and very close to cutting board
-    const isVeryClosed = this.isNearZone(this.sousChef, this.zones.cuttingBoard);
-    if (this.sousChef.heldIngredient && isVeryClosed) {
-        if (!this.isCutting) {
-            // Double check proximity before starting cutting
-            if (isVeryClosed) {
-                this.startCuttingTimer();
-            }
-        }
-        return;
+        // Award points
+        this.addPoints(this.currentRecipe.points);
     }
 
-    if (!this.sousChef.heldIngredient) {
-        // Try pickup from sidebar
-        for (const ingredient of this.ingredients) {
-            if (this.isNearIngredient(this.sousChef, ingredient)) {
-                this.pickUpIngredient(this.sousChef, ingredient);
-                break;
-            }
-        }
-        // Try pickup from divider
+
+    handleSousChefInteraction() {
         if (!this.sousChef.heldIngredient) {
-            for (const ingredient of this.placedIngredients.divider) {
-                if (this.isNearIngredient(this.sousChef, ingredient)) {
-                    this.handleIngredientPickup(this.sousChef, ingredient, 'divider');
-                    break;
-                }
-            }
+            this.handleSousChefPickupAttempt();
+        } else {
+            this.handleSousChefDropOffAttempt();
         }
-    } else {
+    }
+
+    handleSousChefPickupAttempt() {
+        // First priority: Check sidebar ingredients
+        const sidebarIngredient = this.ingredients.find(
+            ingredient => this.isNearIngredient(this.sousChef, ingredient)
+        );
+        if (sidebarIngredient) {
+            this.pickUpIngredient(this.sousChef, sidebarIngredient);
+            return;
+        }
+
+        // Second priority: Check divider ingredients
+        const dividerIngredient = this.placedIngredients.divider.find(
+            ingredient => this.isNearIngredient(this.sousChef, ingredient)
+        );
+        if (dividerIngredient) {
+            this.handleIngredientPickup(this.sousChef, dividerIngredient, 'divider');
+        }
+    }
+
+    handleSousChefDropOffAttempt() {
+        // Check if sous chef is very close to cutting board
+        const isVeryClosed = this.isNearZone(this.sousChef, this.zones.cuttingBoard);
+        if (isVeryClosed && !this.isCutting) {
+            this.startCuttingTimer();
+            return;
+        }
+
+        // Check for divider drop-off
         if (this.isNearZone(this.sousChef, this.zones.divider)) {
             this.dropOffIngredient(this.sousChef, this.zones.divider);
-        } else if (this.isNearZone(this.sousChef, this.zones.rightTrash)) {
-            this.score -= 10;
-            this.scoreText.setText(`Score: ${this.score}`);
-            this.sousChef.heldIngredient.gameObject.destroy();
-            this.sousChef.heldIngredient = null;
+            return;
+        }
+
+        // Check for trash drop-off
+        if (this.isNearZone(this.sousChef, this.zones.rightTrash)) {
+            this.handleTrashDisposal(this.sousChef);
         }
     }
+
+    handleTrashDisposal(character) {
+        if (!character.heldIngredient) return; // Guard clause
     
-}
+        const ingredientX = character.heldIngredient.gameObject.x;
+        const ingredientY = character.heldIngredient.gameObject.y;
+    
+        // First destroy the held ingredient's game object
+        if (character.heldIngredient.gameObject) {
+            character.heldIngredient.gameObject.destroy();
+        }
+    
+        // Clear the reference immediately
+        character.heldIngredient = null;
+    
+        // Apply score penalty
+        this.score -= 5;
+        this.scoreText.setText(`Score: ${this.score}`);
+    
+        // Create visual effects after cleanup
+        this.createTrashEffect(ingredientX, ingredientY);
+    }
+    
+    createTrashEffect(x, y) {
+        // Create the "-10" text effect
+        const penaltyText = this.add.text(x, y, '-5', {
+            fontSize: '32px',
+            fontWeight: 'bold',
+            fill: '#FF0000'
+        }).setOrigin(0.5);
+    
+        // Simple red flash
+        const flash = this.add.rectangle(x, y, 50, 50, 0xff0000)
+            .setAlpha(0.7)
+            .setOrigin(0.5);
+    
+        // Animate the text
+        this.tweens.add({
+            targets: penaltyText,
+            y: y - 100,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power1',
+            onComplete: () => penaltyText.destroy()
+        });
+    
+        // Animate the flash
+        this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 2,
+            duration: 300,
+            onComplete: () => flash.destroy()
+        });
+    
+        // If you have the particle texture loaded, add particles
+        if (this.textures.exists('particle')) {
+            const particles = this.add.particles('particle');
+            
+            particles.createEmitter({
+                x: x,
+                y: y,
+                speed: { min: -100, max: 100 },
+                angle: { min: 0, max: 360 },
+                scale: { start: 0.5, end: 0 },
+                alpha: { start: 1, end: 0 },
+                lifespan: 500,
+                quantity: 10,
+                tint: 0xff0000
+            });
+    
+            // Clean up particles
+            this.time.delayedCall(600, () => {
+                particles.destroy();
+            });
+        }
+    
+        // Add camera shake
+        this.cameras.main.shake(200, 0.005);
+    }
+
+    addPoints(points) {
+        this.score += points;
+        this.scoreText.setText(`Score: ${this.score}`);
+        
+        // Create more dramatic floating score text
+        const floatingText = this.add.text(
+            this.chef.x,
+            this.chef.y - 50,
+            `+${points}`,
+            { 
+                fontSize: '36px',
+                fontWeight: 'bold',
+                fill: '#00ff00',
+                stroke: '#000000',
+                strokeThickness: 4,
+                shadow: {
+                    offsetX: 2,
+                    offsetY: 2,
+                    color: '#000000',
+                    blur: 2,
+                    fill: true
+                }
+            }
+        ).setOrigin(0.5).setScale(0.5);
+
+        // Create a star burst effect
+        const starBurst = this.add.particles('particle');
+        const burstEmitter = starBurst.createEmitter({
+            x: this.chef.x,
+            y: this.chef.y - 30,
+            speed: { min: 100, max: 200 },
+            angle: { min: 0, max: 360 },
+            scale: { start: 0.6, end: 0 },
+            lifespan: 800,
+            quantity: 10,
+            tint: 0xffff00
+        });
+
+        // Animate the floating text with scale effect
+        this.tweens.add({
+            targets: floatingText,
+            scaleX: 1.5,
+            scaleY: 1.5,
+            y: floatingText.y - 80,
+            alpha: 0,
+            duration: 1200,
+            ease: 'Power2',
+            onComplete: () => {
+                floatingText.destroy();
+                starBurst.destroy();
+            }
+        });
+
+        // Flash the score display
+        const originalColor = this.scoreText.style.color;
+        this.scoreText.setColor('#00ff00');
+        this.time.delayedCall(200, () => {
+            this.scoreText.setColor(originalColor);
+        });
+    }
+
 
     checkRecipeCompletion() {
         if (!this.currentRecipe) return false;
@@ -615,49 +963,128 @@ handleSousChefInteraction() {
         )
         .setOrigin(0.5)
         .setScale(0.5);
-    
-        // Clear ingredients from the cooking station
+
+        // Clear current ingredients
+        this.clearCookingStation();
+
+        // Initialize pickup timer
+        this.initializePickupTimer();
+
+        // Move to next recipe immediately
+        this.cycleToNextRecipe();
+    }
+
+    clearCookingStation() {
         this.placedIngredients.cookingStation.forEach(ingredient => {
             ingredient.gameObject.destroy();
         });
         this.placedIngredients.cookingStation = [];
-    
-        // Add delay penalty if the meal isn't picked up
-        const penaltyTime = 10; // 10 seconds to pick up
-        let penaltyCounter = penaltyTime;
-    
+    }
+
+    initializePickupTimer() {
+        const PENALTY_TIME = 10000; // 10 seconds in milliseconds
+        const PENALTY_POINTS = 20;
+
         const penaltyText = this.add.text(
             this.cookingResult.x,
             this.cookingResult.y - 50,
-            `${penaltyCounter}s`,
+            '10',
             { fontSize: '20px', fill: '#ff0000' }
         ).setOrigin(0.5);
-    
-        const penaltyTimer = this.time.addEvent({
-            delay: 1000, // 1-second interval
+
+        // Create a precise timer using Phaser's built-in timer
+        this.pickupTimer = this.time.delayedCall(PENALTY_TIME, () => {
+            this.handleMissedPickup(penaltyText, PENALTY_POINTS);
+        }, [], this);
+
+        // Update countdown text
+        this.time.addEvent({
+            delay: 1000,
+            repeat: 9,
             callback: () => {
-                penaltyCounter--;
-                penaltyText.setText(`${penaltyCounter}s`);
-                if (penaltyCounter <= 0) {
-                    // Deduct points for delay
-                    this.score -= 20;
-                    this.scoreText.setText(`Score: ${this.score}`);
-    
-                    // Destroy meal and penalty timer
-                    penaltyText.destroy();
-                    this.cookingResult.destroy();
-                    this.cookingResult = null;
-    
-                    penaltyTimer.remove();
-                }
-            },
-            repeat: penaltyTime - 1
+                const remaining = Math.ceil((PENALTY_TIME - this.pickupTimer.getElapsed()) / 1000);
+                penaltyText.setText(remaining.toString());
+            }
         });
-    
-        // Pick a new recipe
+    }
+
+    handleMissedPickup(penaltyText, penaltyPoints) {
+        // Apply penalty
+        this.score -= penaltyPoints;
+        this.scoreText.setText(`Score: ${this.score}`);
+
+        // Clean up
+        penaltyText.destroy();
+        if (this.cookingResult) {
+            this.cookingResult.destroy();
+            this.cookingResult = null;
+        }
+
+        // Visual feedback for penalty
+        this.createPenaltyEffect();
+    }
+
+    createPenaltyEffect() {
+        // Create a more intense flash effect
+        const penaltyFlash = this.add.rectangle(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            this.cameras.main.width,
+            this.cameras.main.height,
+            0xff0000
+        ).setAlpha(0);
+
+        // Add warning text
+        const warningText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY,
+            'TIME PENALTY!',
+            { 
+                fontSize: '48px', 
+                fontWeight: 'bold',
+                fill: '#ff0000',
+                stroke: '#ffffff',
+                strokeThickness: 6
+            }
+        ).setOrigin(0.5).setAlpha(0);
+
+        // Create multiple flash sequences
+        this.tweens.add({
+            targets: [penaltyFlash, warningText],
+            alpha: 0.5,
+            duration: 150,
+            yoyo: true,
+            repeat: 2,
+            onComplete: () => {
+                penaltyFlash.destroy();
+                warningText.destroy();
+            }
+        });
+
+        // Shake the camera
+        this.cameras.main.shake(300, 0.005);
+    }
+
+    cycleToNextRecipe() {
         const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
         this.currentRecipe = this.recipes[recipeIndex];
-        this.recipeDisplay.setTexture(this.currentRecipe.image);
+        
+        // Animate recipe transition
+        if (this.recipeDisplay) {
+            this.tweens.add({
+                targets: this.recipeDisplay,
+                alpha: 0,
+                duration: 150,
+                onComplete: () => {
+                    this.recipeDisplay.setTexture(this.currentRecipe.image);
+                    this.tweens.add({
+                        targets: this.recipeDisplay,
+                        alpha: 1,
+                        duration: 150
+                    });
+                }
+            });
+        }
     }
 
     dropOffAtReadyTable() {
@@ -692,6 +1119,19 @@ handleSousChefInteraction() {
         if (this.scoreText && this.scoreText.active) {
             this.scoreText.setText(`Score: ${this.score}`);
         }
+    }
+
+    toggleMusic() {
+        if (this.backgroundMusic.isPlaying) {
+            this.backgroundMusic.pause();
+        } else {
+            this.backgroundMusic.resume();
+        }
+    }
+
+    setMusicVolume(volume) {
+        // Volume should be between 0 and 1
+        this.backgroundMusic.setVolume(Math.max(0, Math.min(1, volume)));
     }
     
     

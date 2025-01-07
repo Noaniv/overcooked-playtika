@@ -76,6 +76,7 @@ export class Preloader extends Scene
 
         this.load.image('ChefImage', 'ChefImage.jpeg');
         this.load.image('Sous_chefImage', 'Sous_chefImage.jpeg');
+
     }
 
     
