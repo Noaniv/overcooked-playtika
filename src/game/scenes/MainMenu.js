@@ -22,17 +22,20 @@ export class MainMenu extends Scene
             align: 'center'
         }).setDepth(100).setOrigin(0.5);
         
+
         EventBus.emit('current-scene-ready', this);
     }
 
-    changeScene() {
-        if (this.logoTween) {
+    changeScene ()
+    {
+        if (this.logoTween)
+        {
             this.logoTween.stop();
             this.logoTween = null;
         }
-        this.scene.start('TransitionScene', { nextScene: 'OvercookedGame' });
+
+        this.scene.start('OvercookedGame');
     }
-    
 
     moveLogo (reactCallback)
     {

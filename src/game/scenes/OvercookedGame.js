@@ -1,4 +1,6 @@
 import { Scene } from 'phaser';
+import { EventBus } from '../EventBus';
+
 
 export class OvercookedGame extends Scene {
     constructor() {
@@ -28,13 +30,27 @@ export class OvercookedGame extends Scene {
                 image: 'taco_recipe',
                 result: 'taco_complete',
                 ingredients: ['Tortilla', 'Cheese', 'Tomato'],
-                points: 50
+                points: 40
             },
             {
                 name: 'Burrito',
                 image: 'burrito_recipe',
                 result: 'burrito_complete',
-                ingredients: ['Tortilla', 'Meat', 'Avocado', 'Cheese'],
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                points: 40
+            },
+            {
+                name: 'Chips and Guac',
+                image: 'chipsandguac_recipe',
+                result: 'chipsandguac_complete',
+                ingredients: ['Tortilla', 'Avocado', 'Tomato'],
+                points: 40
+            },
+            {
+                name: 'Guacamole',
+                image: 'guacamole_recipe',
+                result: 'guacamole_complete',
+                ingredients: ['Tortilla', 'Avocado', 'Tomato'],
                 points: 40
             }
         ];
@@ -179,8 +195,10 @@ Object.entries(this.zones).forEach(([key, zone]) => {
 
         this.startGameTimer();
     }
+
+
     startGameTimer() {
-        let timeLeft = 60; // 2 minutes in seconds
+        let timeLeft = 100; // 2 minutes in seconds
         this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, 'Time: 02:00', {
             fontSize: '32px',
             fill: '#000',
@@ -208,6 +226,7 @@ Object.entries(this.zones).forEach(([key, zone]) => {
             },
             repeat: 120,
         });
+        EventBus.emit('current-scene-ready', this);
     }
     
     
@@ -680,17 +699,7 @@ isNearZone(player, zone, radius = 60) {
         });
     }
 }
-    // cleanupCuttingTimer() {
-    //     if (this.cuttingProgress) {
-    //         this.cuttingProgress.destroy();
-    //         this.cuttingProgress = null;
-    //     }
-    //     if (this.cuttingTimer) {
-    //         this.cuttingTimer.remove();
-    //         this.cuttingTimer = null;
-    //     }
-    //     this.isCutting = false;
-    // }
+
     
     handleChefInteraction() {
         if (!this.chef.heldIngredient) {
@@ -1119,19 +1128,6 @@ isNearZone(player, zone, radius = 60) {
         if (this.scoreText && this.scoreText.active) {
             this.scoreText.setText(`Score: ${this.score}`);
         }
-    }
-
-    toggleMusic() {
-        if (this.backgroundMusic.isPlaying) {
-            this.backgroundMusic.pause();
-        } else {
-            this.backgroundMusic.resume();
-        }
-    }
-
-    setMusicVolume(volume) {
-        // Volume should be between 0 and 1
-        this.backgroundMusic.setVolume(Math.max(0, Math.min(1, volume)));
     }
     
     

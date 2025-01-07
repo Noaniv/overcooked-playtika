@@ -2,9 +2,7 @@ import { Boot } from './scenes/Boot';
 import { Preloader } from './scenes/Preloader';
 import { MainMenu } from './scenes/MainMenu';
 import { OvercookedGame } from './scenes/OvercookedGame';
-import { Game } from './scenes/Game';
 import { GameOver } from './scenes/GameOver';
-import { TransitionScene } from './scenes/TransitionScene';
 import Phaser from 'phaser';
 
 const config = {
@@ -20,9 +18,7 @@ const config = {
         Boot,
         Preloader,
         MainMenu,
-        TransitionScene,
         OvercookedGame,
-        Game,
         GameOver
     ]
 };

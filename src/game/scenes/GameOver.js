@@ -41,7 +41,7 @@ export class GameOver extends Scene
         .setOrigin(0.5);
 
         restartButton.on('pointerdown', () => {
-            this.scene.start('OvercookedGame');
+            this.scene.start('MainMenu');
         });
     }
 }
