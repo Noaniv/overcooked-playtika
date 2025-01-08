@@ -78,7 +78,7 @@ export class Preloader extends Scene
 
         this.load.setPath('assets/scenery/');
 
-        this.load.image('logo', 'favicon.png');
+        this.load.image('logo', 'Logo.png');
         this.load.image('background', 'background.jpg');
 
 
