@@ -79,7 +79,9 @@ export class Preloader extends Scene
         this.load.setPath('assets/scenery/');
 
         this.load.image('logo', 'Logo.png');
-        this.load.image('background', 'background.jpg');
+        this.load.image('background', 'background.png');
+        this.load.image('stations', 'stations.png');
+        this.load.image('mainMenuBackground', 'mainMenuBackground.png');
 
 
     }
@@ -92,8 +94,8 @@ export class Preloader extends Scene
         //  For example, you can define global animations here, so we can use them in other scenes.
 
         //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
-        this.add.image(512, 384, 'background');
+        this.add.image(512, 384, 'mainMenuBackground');
 
-        this.scene.start('MainMenu');
+        this.scene.start('OvercookedGame');
     }
 }
