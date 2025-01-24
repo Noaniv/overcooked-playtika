@@ -1,4 +1,3 @@
-import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
 
 export class GameOver extends Scene
@@ -40,8 +39,9 @@ export class GameOver extends Scene
         .setInteractive()
         .setOrigin(0.5);
 
-        restartButton.on('pointerdown', () => {
-            this.scene.start('MainMenu');
-        });
+        restartButton.setInteractive({ useHandCursor: true })
+            .on('pointerdown', () => {
+                this.scene.start('MainMenu');
+            });
     }
 }

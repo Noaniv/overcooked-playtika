@@ -25,12 +25,13 @@ export class CharacterManager {
             .setOrigin(0)
             .setDisplaySize(130, 150)
             .setInteractive();
-        
+        //was 130 and 15
         // Create sous-chef
         this.sousChef = this.scene.add.image(width / 2 + 50, height / 4, 'Sous_chefImage')
             .setOrigin(0)
             .setDisplaySize(110, 120)
             .setInteractive();
+            //was 110 and 120
 
         this.setupPhysics();
         this.createInteractionZones();
@@ -43,7 +44,7 @@ export class CharacterManager {
             this.chef.y + this.chef.displayHeight / 2,
             this.INTERACTION_RADIUS,
             0x0000ff,
-            0.2
+            0
         ).setDepth(-1);
 
         // Create sous-chef interaction zone
@@ -52,7 +53,7 @@ export class CharacterManager {
             this.sousChef.y + this.sousChef.displayHeight / 2,
             this.INTERACTION_RADIUS,
             0xff0000,
-            0.2
+            0
         ).setDepth(-1);
 
         // Create debug visuals for interaction zones
@@ -61,16 +62,16 @@ export class CharacterManager {
             this.chef.y + this.chef.displayHeight / 2,
             this.INTERACTION_RADIUS,
             0x0000ff,
-            0.1
-        ).setStrokeStyle(2, 0x0000ff);
+            0
+        ).setStrokeStyle(0, 0x0000ff);
 
         const sousChefDebugZone = this.scene.add.circle(
             this.sousChef.x + this.sousChef.displayWidth / 2,
             this.sousChef.y + this.sousChef.displayHeight / 2,
             this.INTERACTION_RADIUS,
             0xff0000,
-            0.1
-        ).setStrokeStyle(2, 0xff0000);
+            0
+        ).setStrokeStyle(0, 0xff0000);
 
         // Add physics to interaction zones
         this.scene.physics.add.existing(chefZone, false);

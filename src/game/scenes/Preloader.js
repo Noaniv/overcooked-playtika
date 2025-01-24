@@ -1,4 +1,5 @@
 import { Scene } from 'phaser';
+import { EventBus } from '../EventBus';
 
 export class Preloader extends Scene
 {
@@ -83,7 +84,29 @@ export class Preloader extends Scene
         this.load.image('stations', 'stations.png');
         this.load.image('mainMenuBackground', 'mainMenuBackground.png');
 
-
+        this.load.setPath('assets/audio/');
+        // Load background music only once
+        this.load.audio('backgroundMusic', 'Background_Music.mp3');
+        this.load.audio('boilingWaterSound', 'boilingwater.mp3');
+        this.load.audio('choppingKitchenSound', 'chopping_kitchen.mp3');
+        this.load.audio('clockTickingSound', 'clock_ticking.mp3');
+        this.load.audio('cookingKitchenSound', 'cooking_kitchen.mp3');
+        this.load.audio('drawKnifeSound', 'draw_knife.wav');
+        this.load.audio('eatingSound', 'eating_sound.mp3');
+        this.load.audio('fallingSound', 'falling_sound.mp3');
+        this.load.audio('fightingSound', 'fighting_sound.mp3');
+        this.load.audio('flameBurningSound', 'flame_burning.mp3');
+        this.load.audio('fryingEggSound', 'frying_egg.mp3');
+        this.load.audio('gameCountdownSound', 'game_star_countdown.mp3');
+        this.load.audio('goldGameSound', 'gold_game.mp3');
+        this.load.audio('pickupSound', 'pickup.wav');
+        this.load.audio('sodaSound', 'soda.mp3');
+        this.load.audio('trashDisposalSound', 'trash_disposal.mp3');
+                
+        // Load UI assets
+        this.load.setPath('assets/ui/');
+        this.load.image('musicOn', 'music-on.png');
+        this.load.image('musicOff', 'music-off.png');
     }
 
     
@@ -93,9 +116,55 @@ export class Preloader extends Scene
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
 
-        //  Move to the MainMenu. You could also swap this for a Scene Transition, such as a camera fade.
-        this.add.image(512, 384, 'mainMenuBackground');
+        // Initialize game music with proper context
+        this.game.music = this.sound.add('backgroundMusic', {
+            loop: true,
+            volume: 0.5,
+            delay: 0
+        });
 
-        this.scene.start('OvercookedGame');
+        // Set up music toggle listener
+        EventBus.on('toggleMusic', (muted) => {
+            console.log('Toggle music event received:', muted);
+            try {
+                if (!this.sound.locked) {
+                    if (muted && this.game.music.isPlaying) {
+                        this.game.music.pause();
+                    } else if (!muted) {
+                        if (this.game.music.isPaused) {
+                            this.game.music.resume();
+                        } else if (!this.game.music.isPlaying) {
+                            this.game.music.play();
+                        }
+                    }
+                    EventBus.emit('musicStateChanged', muted);
+                } else {
+                    console.log('Audio context is locked, waiting for user interaction');
+                    this.sound.once('unlocked', () => {
+                        EventBus.emit('toggleMusic', muted);
+                    });
+                }
+            } catch (error) {
+                console.error('Error toggling music:', error);
+            }
+        });
+
+        // Start music only after audio context is ready
+        this.sound.once('unlocked', () => {
+            console.log('Audio context unlocked');
+            if (!this.game.music.isPlaying) {
+                this.game.music.play();
+                EventBus.emit('musicStateChanged', false);
+            }
+        });
+
+        // Move to MainMenu
+        this.add.image(512, 384, 'mainMenuBackground');
+        this.scene.start('MainMenu');
+    }
+
+    shutdown() {
+        // Clean up event listener when scene shuts down
+        EventBus.off('toggleMusic');
     }
 }

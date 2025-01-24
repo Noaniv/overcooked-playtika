@@ -28,11 +28,13 @@ export class ZoneManager {
                 zone.width,
                 zone.height,
                 0x00ff00,
-                0.3
+                0
             ).setOrigin(0.5);
 
             this.scene.physics.add.existing(zoneRect, true);
             this.zoneSprites[zoneKey] = zoneRect;
+
+            
         });
     }
 
@@ -108,5 +110,37 @@ export class ZoneManager {
 
     getZoneSprite(zoneName) {
         return this.zoneSprites[zoneName];
+    }
+
+    updateZones(width, height, dividerWidth, dividerX) {
+        // Update zone positions and dimensions
+        this.zones = {
+            sidebar: { x: width - 75, y: 0, width: 100, height: height },
+            divider: { x: dividerX, y: height/2 - 130, width: dividerWidth, height: 300},
+            cookingStation: { x: 0, y: 0, width: 370, height: 130 },
+            cuttingBoard: { x: dividerX + dividerWidth + 30, y: 0, width: 340, height: 130 },
+            leftTrash: { x: 170, y: height - 85, width: 90, height: 90 },
+            rightTrash: { x: width - 210, y: height - 85, width: 90, height: 80 },
+            readyTable: { x: 0, y: height/2 - 50, width: 180, height: 350 }
+        };
+
+        // Update the physics bodies and visuals for each zone
+        Object.entries(this.zones).forEach(([zoneKey, zone]) => {
+            const zoneSprite = this.zoneSprites[zoneKey];
+            if (zoneSprite) {
+                // Update zone sprite position and size
+                zoneSprite.setPosition(
+                    zone.x + zone.width / 2,
+                    zone.y + zone.height / 2
+                );
+                zoneSprite.setSize(zone.width, zone.height);
+
+                // Update physics body
+                if (zoneSprite.body) {
+                    zoneSprite.body.setSize(zone.width, zone.height);
+                    zoneSprite.body.setPosition(zone.x, zone.y);
+                }
+            }
+        });
     }
 } 

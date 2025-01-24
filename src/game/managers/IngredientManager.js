@@ -32,17 +32,17 @@ export class IngredientManager {
 
     createIngredients(sidebarX) {
         const ingredientConfigs = [
-            { name: 'Avocado', y: 70 },
-            { name: 'Meat', y: 200},
-            { name: 'Tomato', y: 350 },
-            { name: 'Cheese', y: 500 },
-            { name: 'Tortilla', y: 650 }
+            { name: 'Avocado', y: 100 },
+            { name: 'Meat', y: 230},
+            { name: 'Tomato', y: 380 },
+            { name: 'Cheese', y: 530 },
+            { name: 'Tortilla', y: 680 }
         ];
 
         this.ingredients = ingredientConfigs.map(ing => {
-            const image = this.scene.add.image(sidebarX + 60, ing.y, `${ing.name.toLowerCase()}1`)
+            const image = this.scene.add.image(sidebarX + 45, ing.y, `${ing.name.toLowerCase()}1`)
                 .setInteractive()
-                .setScale(0.3);
+                .setScale(0.25);
             
             return { 
                 name: ing.name, 
@@ -82,11 +82,10 @@ export class IngredientManager {
                 zoneWidth,
                 zoneHeight,
                 0xff0000,
-                0.2
+                0
             )
                 .setOrigin(0.5)
-                .setStrokeStyle(2, 0xff0000);  // Add border
-    
+                
             ingredient.debugVisual = zoneVisual;  // Attach to ingredient instead of zone
 
             // Add debug text to show zone name
@@ -94,8 +93,9 @@ export class IngredientManager {
                 ingredient.x,
                 ingredient.y,
                 ingredient.name,
-                { fontSize: '16px', backgroundColor: '#ffffff' }
-            ).setOrigin(0.5);
+                { fontSize: '16px', color: '#000000', backgroundColor: null } // Black text on a black background
+            ).setOrigin(0.5).setAlpha(0); // Fully transparent
+            
         });
 
         // Setup ingredient overlaps in CharacterManager
@@ -167,16 +167,16 @@ export class IngredientManager {
                     85,
                     85,
                     0x00ff00,
-                    0.2
+                    0
                 )
                     .setOrigin(0.5)
-                    .setStrokeStyle(2, 0x00ff00),
+                    .setStrokeStyle(0, 0x00ff00),
                 debugText: this.scene.add.text(
-                    player.x + player.displayWidth / 2,
-                    player.y - 20,
+                    ingredient.x,
+                    ingredient.y,
                     ingredient.name,
-                    { fontSize: '16px', backgroundColor: '#ffffff' }
-                ).setOrigin(0.5)
+                    { fontSize: '16px', color: '#000000', backgroundColor: null } // Black text on a black background
+                ).setOrigin(0.5).setAlpha(0)
             };
             
             // Add physics to the new ingredient
@@ -391,12 +391,6 @@ export class IngredientManager {
         // Update the ingredient's position
         newIngredient.gameObject.setPosition(newIngredient.x, newIngredient.y);
         newIngredient.interactiveZone.setPosition(newIngredient.x, newIngredient.y);
-        if (newIngredient.debugVisual) {
-            newIngredient.debugVisual.setPosition(newIngredient.x, newIngredient.y);
-        }
-        if (newIngredient.debugText) {
-            newIngredient.debugText.setPosition(newIngredient.x, newIngredient.y);
-        }
 
         // Mark slot as occupied for divider
         if (zoneName === 'divider' && slotIndex !== -1) {
@@ -511,11 +505,11 @@ export class IngredientManager {
             60, // Same as zone width
             60, // Same as zone height
             0x00ff00,
-            0.2
+            0.0
         ).setOrigin(0.5);
 
         // Add border to make the zone more visible
-        zoneVisual.setStrokeStyle(2, 0x00ff00);
+        zoneVisual.setStrokeStyle(0, 0x00ff00);
 
         // Store the visual in the zone object
         zone.debugVisual = zoneVisual;

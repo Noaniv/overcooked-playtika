@@ -27,8 +27,13 @@ export class OvercookedGame extends Scene {
     }
 
     create() {
+        // Add resize handler right at the start
+        this.scale.on('resize', this.handleResize, this);
+        
+        // Get initial dimensions
         const width = this.scale.width;
         const height = this.scale.height;
+        
         const dividerWidth = 250;
         const dividerX = (width - dividerWidth) / 2;
 
@@ -54,7 +59,7 @@ export class OvercookedGame extends Scene {
         this.characterManager.createCharacters(width, height);
 
         // Initialize ingredients
-        this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x);
+        this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x );
 
         // Initialize recipe display
         this.recipeManager.initializeDisplay(
@@ -71,6 +76,8 @@ export class OvercookedGame extends Scene {
         // Start game timer
         this.startGameTimer();
 
+        // Don't modify music state, let it continue from previous scene
+        
         EventBus.emit('current-scene-ready', this);
     }
 
@@ -103,7 +110,7 @@ export class OvercookedGame extends Scene {
     }
 
     startGameTimer() {
-        let timeLeft = 100; // 2 minutes in seconds
+        let timeLeft = 120; // 2 minutes in seconds
         this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, 'Time: 02:00', {
             fontSize: '32px',
             fill: '#000',
@@ -133,7 +140,8 @@ export class OvercookedGame extends Scene {
         });
     }
 
-    endGame(){
+    endGame() {
+        // Don't stop music when game ends
         this.scene.start('GameOver', { score: this.score });
     }    
 
@@ -626,5 +634,49 @@ export class OvercookedGame extends Scene {
     
         // Add points to the score
         this.addPoints(meal.points || 40);
+    }
+
+    handleResize(gameSize) {
+        const width = gameSize.width;
+        const height = gameSize.height;
+        
+        // Resize background
+        if (this.background) {
+            this.background.setDisplaySize(width, height);
+            this.background.setPosition(width / 2, height / 2);
+        }
+        
+        // Update UI elements positions
+        if (this.timeText) {
+            this.timeText.setPosition(width / 2, height - 40);
+        }
+        if (this.scoreText) {
+            this.scoreText.setPosition(width / 2, height - 80);
+        }
+        
+        // Recalculate game zones
+        const dividerWidth = 250;
+        const dividerX = (width - dividerWidth) / 2;
+        
+        if (this.zoneManager) {
+            this.zoneManager.updateZones(width, height, dividerWidth, dividerX);
+        }
+        
+        // Update recipe display position if it exists
+        if (this.recipeManager) {
+            this.recipeManager.updateDisplayPosition(
+                this.zoneManager.getZone('divider').x + this.zoneManager.getZone('divider').width / 2,
+                200
+            );
+        }
+        
+        // Update camera
+        this.cameras.main.setSize(width, height);
+    }
+
+    shutdown() {
+        // Clean up resize listener when scene shuts down
+        this.scale.removeListener('resize', this.handleResize);
+        // ... any other existing shutdown code ...
     }
 }

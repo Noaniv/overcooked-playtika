@@ -1,5 +1,5 @@
-import { EventBus } from '../EventBus';
 import { Scene } from 'phaser';
+import { EventBus } from '../EventBus';
 
 export class MainMenu extends Scene
 {
@@ -13,7 +13,6 @@ export class MainMenu extends Scene
     create ()
     {
         this.add.image(512, 384, 'mainMenuBackground');
-
         this.logo = this.add.image(512, 300, 'logo').setDepth(100);
         //add background to main menu text below with no image
         
@@ -28,6 +27,16 @@ export class MainMenu extends Scene
         mainMenuText.setInteractive({ useHandCursor: true })
             .on('pointerdown', () => this.changeScene());
     
+        // Only try to play music if it exists and isn't already playing
+        if (this.game.music && !this.game.music.isPlaying && !this.sound.locked) {
+            try {
+                this.game.music.play();
+                EventBus.emit('musicStateChanged', false);
+            } catch (error) {
+                console.error('Error playing music in MainMenu:', error);
+            }
+        }
+
         EventBus.emit('current-scene-ready', this);
     }
 

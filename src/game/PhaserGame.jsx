@@ -1,7 +1,7 @@
 import PropTypes from 'prop-types';
 import { forwardRef, useEffect, useLayoutEffect, useRef } from 'react';
-import StartGame from './main';
 import { EventBus } from './EventBus';
+import StartGame from './main';
 
 export const PhaserGame = forwardRef(function PhaserGame ({ currentActiveScene }, ref)
 {
@@ -9,25 +9,28 @@ export const PhaserGame = forwardRef(function PhaserGame ({ currentActiveScene }
 
     // Create the game inside a useLayoutEffect hook to avoid the game being created outside the DOM
     useLayoutEffect(() => {
-        
         if (game.current === undefined)
         {
             game.current = StartGame("game-container");
+            // Expose game instance globally for music control
+            window.game = game.current;
             
             if (ref !== null)
             {
                 ref.current = { game: game.current, scene: null };
             }
+
+            // Initialize music state
+            EventBus.emit('musicStateChanged', false);
         }
 
         return () => {
-
             if (game.current)
             {
                 game.current.destroy(true);
                 game.current = undefined;
+                window.game = undefined;
             }
-
         }
     }, [ref]);
 
@@ -50,6 +53,7 @@ export const PhaserGame = forwardRef(function PhaserGame ({ currentActiveScene }
         }
         
     }, [currentActiveScene, ref])
+    
 
     return (
         <div id="game-container"></div>

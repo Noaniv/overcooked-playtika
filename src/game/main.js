@@ -1,9 +1,9 @@
+import Phaser from 'phaser';
 import { Boot } from './scenes/Boot';
-import { Preloader } from './scenes/Preloader';
+import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
 import { OvercookedGame } from './scenes/OvercookedGame';
-import { GameOver } from './scenes/GameOver';
-import Phaser from 'phaser';
+import { Preloader } from './scenes/Preloader';
 
 const config = {
     type: Phaser.AUTO,
