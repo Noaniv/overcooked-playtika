@@ -1,102 +1,74 @@
+import { EventBus } from '../EventBus';
+
 export class RecipeManager {
     constructor(scene) {
         this.scene = scene;
+        this.currentRecipe = null;
         this.recipes = [
             {
                 name: 'Taco',
-                image: 'taco_recipe',
+                ingredients: ['Tortilla', 'Meat', 'Cheese'],
                 result: 'taco_complete',
-                ingredients: ['Tortilla', 'Cheese', 'Tomato'],
-                points: 40
+                image: 'taco_recipe'
             },
             {
                 name: 'Burrito',
-                image: 'burrito_recipe',
-                result: 'burrito_complete',
                 ingredients: ['Tortilla', 'Meat', 'Tomato'],
-                points: 40
+                result: 'burrito_complete',
+                image: 'burrito_recipe'
             },
             {
                 name: 'Chips and Guac',
-                image: 'chipsandguac_recipe',
-                result: 'chipsandguac_complete',
                 ingredients: ['Tortilla', 'Avocado', 'Tomato'],
-                points: 40
+                result: 'chipsandguac_complete',
+                image: 'chipsandguac_recipe'
             },
             {
                 name: 'Guacamole',
-                image: 'guacamole_recipe',
-                result: 'guacamole_complete',
                 ingredients: ['Tortilla', 'Avocado', 'Tomato'],
-                points: 40
+                result: 'guacamole_complete',
+                image: 'guacamole_recipe'
             }
         ];
-        this.currentRecipe = this.recipes[0];
-        this.recipeDisplay = null;
-    }
-
-    initializeDisplay(x, y) {
-        this.recipeDisplay = this.scene.add.image(x, y, this.currentRecipe.image)
-            .setOrigin(0.5)
-            .setScale(0.4);
     }
 
     cycleToNextRecipe() {
         const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
         this.currentRecipe = this.recipes[recipeIndex];
         
-        if (this.recipeDisplay) {
-            this.scene.tweens.add({
-                targets: this.recipeDisplay,
-                alpha: 0,
-                duration: 150,
-                onComplete: () => {
-                    this.recipeDisplay.setTexture(this.currentRecipe.image);
-                    this.scene.tweens.add({
-                        targets: this.recipeDisplay,
-                        alpha: 1,
-                        duration: 150
-                    });
-                }
-            });
-        }
+        // Emit recipe update with both name and image
+        EventBus.emit('recipe-updated', {
+            name: this.currentRecipe.name,
+            image: this.currentRecipe.image
+        });
     }
 
-    checkRecipeCompletion(placedIngredients) {
+    checkRecipeCompletion(ingredients) {
         if (!this.currentRecipe) return false;
-
+        
         const requiredIngredients = this.currentRecipe.ingredients;
-        const placedIngredientNames = placedIngredients.map(ing => ing.name);
-
-        // Check if all required ingredients are in the cooking station
+        const placedIngredients = ingredients.map(ing => ing.name);
+        
         return requiredIngredients.every(ingredient => 
-            placedIngredientNames.includes(ingredient)
-        ) && placedIngredientNames.length === requiredIngredients.length;
+            placedIngredients.includes(ingredient)
+        );
     }
 
     completeRecipe() {
-        if (!this.currentRecipe) return;
-
-        // Show completed meal image
-        this.scene.cookingResult = this.scene.add.image(
-            this.scene.zoneManager.getZone('cookingStation').x + this.scene.zoneManager.getZone('cookingStation').width / 2,
-            this.scene.zoneManager.getZone('cookingStation').y + this.scene.zoneManager.getZone('cookingStation').height / 2,
-            this.currentRecipe.result
-        )
-        .setOrigin(0.5)
-        .setScale(0.5);
-
-        // Store the completed recipe name for pickup
-        this.scene.cookingResult.recipeName = this.currentRecipe.name;
-        this.scene.cookingResult.points = this.currentRecipe.points;
-
-        // Clear current ingredients
-        this.scene.ingredientManager.clearCookingStation();
-
-        // Initialize pickup timer in the scene
-        this.scene.initializePickupTimer();
-
+        // Award points
+        this.scene.addPoints(50);
+        
         // Move to next recipe
         this.cycleToNextRecipe();
+    }
+
+    // Initialize with first recipe
+    start() {
+        this.currentRecipe = this.recipes[0];
+        // Emit initial recipe with both name and image
+        EventBus.emit('recipe-updated', {
+            name: this.currentRecipe.name,
+            image: this.currentRecipe.image
+        });
     }
 } 

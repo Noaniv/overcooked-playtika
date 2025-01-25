@@ -59,13 +59,7 @@ export class OvercookedGame extends Scene {
         this.characterManager.createCharacters(width, height);
 
         // Initialize ingredients
-        this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x );
-
-        // Initialize recipe display
-        this.recipeManager.initializeDisplay(
-            this.zoneManager.getZone('divider').x + this.zoneManager.getZone('divider').width / 2,
-            200
-        );
+        this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x);
 
         // Set up collisions
         this.zoneManager.setupCollisions(this.characterManager);
@@ -73,11 +67,12 @@ export class OvercookedGame extends Scene {
         // Set up controls
         this.setupControls();
 
-        // Start game timer
+        // Start game timer immediately since countdown is handled in previous scene
         this.startGameTimer();
 
-        // Don't modify music state, let it continue from previous scene
-        
+        // Start the recipe manager at the end of create
+        this.recipeManager.start();
+
         EventBus.emit('current-scene-ready', this);
     }
 
@@ -111,27 +106,13 @@ export class OvercookedGame extends Scene {
 
     startGameTimer() {
         let timeLeft = 120; // 2 minutes in seconds
-        this.timeText = this.add.text(this.scale.width / 2, this.scale.height - 40, 'Time: 02:00', {
-            fontSize: '32px',
-            fill: '#000',
-            backgroundColor: '#ffffff',
-            padding: { x: 10, y: 5 },
-        }).setOrigin(0.5);
-        this.scoreText = this.add.text(this.scale.width / 2, this.scale.height - 80, `Score: ${this.score}`, {
-            fontSize: '32px',
-            fill: '#000',
-            backgroundColor: '#ffffff',
-            padding: { x: 10, y: 5 },
-        }).setOrigin(0.5);
-
+        
         this.gameTimer = this.time.addEvent({
             delay: 1000,
             callback: () => {
                 timeLeft--;
-                const minutes = Math.floor(timeLeft / 60);
-                const seconds = timeLeft % 60;
-                const formattedTime = `Time: ${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-                this.timeText.setText(formattedTime);
+                // Emit time update
+                EventBus.emit('time-updated', timeLeft);
                 if (timeLeft <= 0) {
                     this.endGame();
                 }
@@ -331,8 +312,9 @@ export class OvercookedGame extends Scene {
     
         // Apply score penalty
         this.score -= 5;
-        this.scoreText.setText(`Score: ${this.score}`);
-    
+        // Emit score update after penalty
+        EventBus.emit('score-updated', this.score);
+        
         // Create visual effects after cleanup
         this.createTrashEffect(ingredientX, ingredientY);
     }
@@ -394,13 +376,11 @@ export class OvercookedGame extends Scene {
         // Add camera shake
         this.cameras.main.shake(200, 0.005);
     }
-//destroy addpoint visuals after 3 seconds
 
     addPoints(points) {
         this.score += points;
-        this.scoreText.setText(`Score: ${this.score}`);
         
-        // Create more dramatic floating score text
+        // Create floating score text effect
         const floatingText = this.add.text(
             this.characterManager.chef.x,
             this.characterManager.chef.y - 50,
@@ -449,16 +429,8 @@ export class OvercookedGame extends Scene {
             }
         });
 
-        // Flash the score display
-        const originalColor = this.scoreText.style.color;
-        this.scoreText.setColor('#00ff00');
-        this.time.delayedCall(200, () => {
-            this.scoreText.setColor(originalColor);
-        });
-        this.time.delayedCall(3000, () => {
-            floatingText.destroy();
-            starBurst.destroy();
-        });
+        // Emit score update
+        EventBus.emit('score-updated', this.score);
     }
 
     checkRecipeCompletion() {
@@ -528,7 +500,8 @@ export class OvercookedGame extends Scene {
     handleMissedPickup(penaltyText, penaltyPoints) {
         // Apply penalty
         this.score -= penaltyPoints;
-        this.scoreText.setText(`Score: ${this.score}`);
+        // Emit score update after penalty
+        EventBus.emit('score-updated', this.score);
 
         // Clean up
         penaltyText.destroy();
@@ -602,6 +575,9 @@ export class OvercookedGame extends Scene {
                 }
             });
         }
+
+        // Emit recipe updated event
+        EventBus.emit('recipe-updated', this.currentRecipe.name);
     }
 
     dropOffAtReadyTable() {
@@ -646,28 +622,12 @@ export class OvercookedGame extends Scene {
             this.background.setPosition(width / 2, height / 2);
         }
         
-        // Update UI elements positions
-        if (this.timeText) {
-            this.timeText.setPosition(width / 2, height - 40);
-        }
-        if (this.scoreText) {
-            this.scoreText.setPosition(width / 2, height - 80);
-        }
-        
         // Recalculate game zones
         const dividerWidth = 250;
         const dividerX = (width - dividerWidth) / 2;
         
         if (this.zoneManager) {
             this.zoneManager.updateZones(width, height, dividerWidth, dividerX);
-        }
-        
-        // Update recipe display position if it exists
-        if (this.recipeManager) {
-            this.recipeManager.updateDisplayPosition(
-                this.zoneManager.getZone('divider').x + this.zoneManager.getZone('divider').width / 2,
-                200
-            );
         }
         
         // Update camera

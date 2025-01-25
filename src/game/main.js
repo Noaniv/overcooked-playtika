@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { Boot } from './scenes/Boot';
+import { CountdownScene } from './scenes/CountdownScene';
 import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
 import { OvercookedGame } from './scenes/OvercookedGame';
@@ -18,6 +19,7 @@ const config = {
         Boot,
         Preloader,
         MainMenu,
+        CountdownScene,
         OvercookedGame,
         GameOver
     ]

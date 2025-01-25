@@ -7,6 +7,7 @@ export class CuttingManager {
         this.timerGroup = null;
         this.timeLeft = 0;
         this.spaceKeyIsDown = false;
+        this.currentCuttingSound = null;
     }
 
     startCuttingTimer(player) {
@@ -15,6 +16,32 @@ export class CuttingManager {
         if (!player.heldIngredient) {
             console.log('No held ingredient to cut');
             return;
+        }
+
+        try {
+            console.log('Playing draw knife sound...');
+            const drawKnifeSound = this.scene.sound.add('drawKnifeSound');
+            if (!drawKnifeSound) {
+                console.error('Failed to create draw knife sound');
+                return;
+            }
+            drawKnifeSound.play({ volume: 0.5 });
+            
+            drawKnifeSound.once('complete', () => {
+                console.log('Draw knife sound completed, starting cutting sound...');
+                this.currentCuttingSound = this.scene.sound.add('cuttingKitchenSound', { 
+                    loop: true,
+                    volume: 0.5
+                });
+                if (!this.currentCuttingSound) {
+                    console.error('Failed to create cutting sound');
+                    return;
+                }
+                this.currentCuttingSound.play({ volume: 1 });
+                drawKnifeSound.destroy();
+            });
+        } catch (error) {
+            console.error('Error playing cutting sounds:', error);
         }
 
         this.isCutting = true;
@@ -164,6 +191,13 @@ export class CuttingManager {
     }
 
     cleanupCuttingTimer() {
+        // Stop and cleanup all sounds
+        if (this.currentCuttingSound) {
+            this.currentCuttingSound.stop();
+            this.currentCuttingSound.destroy();
+            this.currentCuttingSound = null;
+        }
+
         if (this.countdownTimer) {
             this.countdownTimer.remove();
             this.countdownTimer = null;
@@ -231,6 +265,13 @@ export class CuttingManager {
     }
 
     cancelCutting(player) {
+        // Stop and cleanup all sounds
+        if (this.currentCuttingSound) {
+            this.currentCuttingSound.stop();
+            this.currentCuttingSound.destroy();
+            this.currentCuttingSound = null;
+        }
+
         if (this.isCutting && player.heldIngredient) {
             this.scene.score -= 5;
             this.scene.scoreText.setText(`Score: ${this.scene.score}`);

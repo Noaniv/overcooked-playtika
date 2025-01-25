@@ -47,8 +47,7 @@ export class MainMenu extends Scene
             this.logoTween.stop();
             this.logoTween = null;
         }
-
-        this.scene.start('OvercookedGame');
+        this.scene.start('CountdownScene');
     }
 
     moveLogo (reactCallback)

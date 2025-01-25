@@ -19,40 +19,57 @@ export class IngredientManager {
         const dividerZone = this.scene.zoneManager.getZone('divider');
         if (!dividerZone) return;
 
-        const dividerCenterY = dividerZone.y + dividerZone.height / 2;
-        const spacing = 70; // Vertical spacing between slots
+        // Calculate positions to evenly space 4 slots along the divider height
+        const dividerHeight = dividerZone.height;
+        const padding = 80; // Space from top/bottom edges
+        const usableHeight = dividerHeight - (padding * 2);
+        const spacing = usableHeight / 3; // For 4 slots, we need 3 spaces between them
 
         this.dividerSlots = [
-            { occupied: false, y: dividerCenterY - spacing * 1.5 },  // Top slot
-            { occupied: false, y: dividerCenterY - spacing * 0.5 },  // Upper middle slot
-            { occupied: false, y: dividerCenterY + spacing * 0.5 },  // Lower middle slot
-            { occupied: false, y: dividerCenterY + spacing * 1.5 }   // Bottom slot
+            { occupied: false, y: dividerZone.y + padding }, // Top slot
+            { occupied: false, y: dividerZone.y + padding + spacing }, // Upper middle
+            { occupied: false, y: dividerZone.y + padding + spacing * 2 }, // Lower middle
+            { occupied: false, y: dividerZone.y + padding + spacing * 3 } // Bottom slot
         ];
+
+        // Debug visualization of slots (optional)
+        if (this.scene.game.config.physics.arcade?.debug) {
+            this.dividerSlots.forEach(slot => {
+                this.scene.add.circle(dividerZone.x + dividerZone.width / 2, slot.y, 5, 0xff0000);
+            });
+        }
     }
 
     createIngredients(sidebarX) {
-        const ingredientConfigs = [
-            { name: 'Avocado', y: 100 },
-            { name: 'Meat', y: 230},
-            { name: 'Tomato', y: 380 },
-            { name: 'Cheese', y: 530 },
-            { name: 'Tortilla', y: 680 }
-        ];
+        const ingredients = ['Tortilla', 'Cheese', 'Meat', 'Tomato', 'Avocado'];
+        const spacing = 150;
+        const startY = 100;
 
-        this.ingredients = ingredientConfigs.map(ing => {
-            const image = this.scene.add.image(sidebarX + 45, ing.y, `${ing.name.toLowerCase()}1`)
-                .setInteractive()
-                .setScale(0.25);
-            
-            return { 
-                name: ing.name, 
-                x: sidebarX + 60, 
-                y: ing.y, 
-                gameObject: image 
+        ingredients.forEach((name, index) => {
+            const y = startY + (spacing * index);
+            const ingredient = {
+                name: name,
+                x: sidebarX + 40,
+                y: y,
+                gameObject: this.scene.add.image(sidebarX + 1200, y, `${name.toLowerCase()}1`)
+                    .setScale(0.25),
+                interactiveZone: this.createIngredientZone(sidebarX + 60, y, name),
+                debugVisual: this.scene.add.rectangle(sidebarX + 60, y, 85, 85, 0x00ff00, 0)
+                    .setOrigin(0.5)
+                    .setStrokeStyle(0, 0x00ff00),
+                debugText: this.scene.add.text(sidebarX + 60, y, name, {
+                    fontSize: '16px',
+                    color: '#000000',
+                    backgroundColor: null
+                }).setOrigin(0.5).setAlpha(0)
             };
-        });
 
-        this.setupInteractiveZones();
+            // Add pulse effect to the ingredient
+            this.addPulseEffect(ingredient);
+
+            this.ingredients.push(ingredient);
+            this.scene.characterManager.setupIngredientOverlaps([ingredient.interactiveZone]);
+        });
     }
 
     setupInteractiveZones() {
@@ -123,6 +140,23 @@ export class IngredientManager {
             this.placedIngredients[location].splice(this.placedIngredients[location].indexOf(ingredient), 1);
         }
     }
+    addPulseEffect(ingredient) {
+        this.scene.tweens.add({
+            targets: ingredient.gameObject,
+            scaleX: { from: 0.25, to: 0.3 },
+            scaleY: { from: 0.25, to: 0.3 },
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
+    }
+    
+    // To stop the effect
+    removePulseEffect(ingredient) {
+        this.scene.tweens.killTweensOf(ingredient.gameObject);
+        ingredient.gameObject.setScale(0.25); // Reset to original scale
+    }
 
     clearCookingStation() {
         this.placedIngredients.cookingStation.forEach(ingredient => {
@@ -146,6 +180,9 @@ export class IngredientManager {
             
             if (!ingredient) return false;
             
+            // Play pickup sound
+            this.scene.sound.play('pickupSound', { volume: 0.5 });
+
             // Create a new copy of the ingredient for the player to hold
             const newIngredient = {
                 name: ingredient.name,
@@ -229,6 +266,9 @@ export class IngredientManager {
                         return false;
                     }
                 }
+
+                // Play pickup sound
+                this.scene.sound.play('pickupSound', { volume: 0.5 });
 
                 // Transfer all properties including debug visuals
                 const pickedUpIngredient = {
@@ -368,6 +408,7 @@ export class IngredientManager {
         const dropPosition = this.scene.zoneManager.getDropPosition(zoneName, player);
         if (!dropPosition) return false;
 
+        // Create and position the new ingredient
         const newIngredient = { 
             name: player.heldIngredient.name,
             gameObject: player.heldIngredient.gameObject,
@@ -378,17 +419,10 @@ export class IngredientManager {
             interactiveZone: player.heldIngredient.interactiveZone,
             debugVisual: player.heldIngredient.debugVisual,
             debugText: player.heldIngredient.debugText,
-            slotIndex: slotIndex // Store the slot index for divider ingredients
+            slotIndex: slotIndex
         };
 
-        // Position timer container to the right of the ingredient
-        const timerOffset = 40; // Distance from ingredient
-        const timerX = Math.min(
-            zone.x + zone.width - timerOffset, // Don't go beyond right edge
-            newIngredient.x + timerOffset
-        );
-
-        // Update the ingredient's position
+        // Update positions
         newIngredient.gameObject.setPosition(newIngredient.x, newIngredient.y);
         newIngredient.interactiveZone.setPosition(newIngredient.x, newIngredient.y);
 
@@ -399,6 +433,33 @@ export class IngredientManager {
 
         // Place ingredient before adding timer
         this.placeIngredient(zoneName, newIngredient);
+        
+        // Now that we know the drop-off was successful, play the appropriate sound
+        if (zoneName === 'leftTrash' || zoneName === 'rightTrash') {
+            try {
+                console.log('Playing trash sound...');
+                const trashSound = this.scene.sound.add('trashDisposalSound');
+                if (!trashSound) {
+                    console.error('Failed to create trash sound');
+                    return;
+                }
+                trashSound.play({ volume: 1 });
+                console.log('Trash sound started playing');
+                trashSound.once('complete', () => {
+                    console.log('Trash sound completed');
+                    trashSound.destroy();
+                });
+            } catch (error) {
+                console.error('Error playing trash sound:', error);
+            }
+        } else if (zoneName === 'cookingStation') {
+            const cookingSound = this.scene.sound.add('cookingKitchenSound');
+            cookingSound.play({ volume: 0.5 });
+            cookingSound.once('complete', () => {
+                cookingSound.destroy();
+            });
+        }
+
         player.heldIngredient = null;
 
         // Only add timer for divider zone
@@ -467,6 +528,16 @@ export class IngredientManager {
     }
 
     destroyIngredient(zoneName, ingredient) {
+        // Play trash disposal sound when ingredient despawns from divider
+        if (zoneName === 'divider') {
+            const despawnSound = this.scene.sound.add('trashDisposalSound');
+            despawnSound.play({ volume: 0.3 });
+            // Clean up sound after it's done
+            despawnSound.once('complete', () => {
+                despawnSound.destroy();
+            });
+        }
+
         // Clean up all visuals
         ingredient.gameObject.destroy();
         ingredient.timerContainer?.destroy();

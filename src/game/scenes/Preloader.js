@@ -48,9 +48,9 @@ export class Preloader extends Scene
 
         this.load.setPath('assets/recipes/');
 
-        this.load.image('burrito_recipe', 'burrito_recipe.png');
-        this.load.image('chipsandguac_recipe', 'chipsandguac_recipe.png');
         this.load.image('guacamole_recipe', 'guacamole_recipe.png');
+        this.load.image('chipsAndGuac_recipe', 'chipsandguac_recipe.png');
+        this.load.image('burrito_recipe', 'burrito_recipe.png');
         this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
         this.load.image('taco_recipe', 'tacos_recipe.png');
 
@@ -85,41 +85,57 @@ export class Preloader extends Scene
         this.load.image('mainMenuBackground', 'mainMenuBackground.png');
 
         this.load.setPath('assets/audio/');
+        console.log('Loading audio files...');
+        
         // Load background music only once
         this.load.audio('backgroundMusic', 'Background_Music.mp3');
-        this.load.audio('boilingWaterSound', 'boilingwater.mp3');
-        this.load.audio('choppingKitchenSound', 'chopping_kitchen.mp3');
-        this.load.audio('clockTickingSound', 'clock_ticking.mp3');
-        this.load.audio('cookingKitchenSound', 'cooking_kitchen.mp3');
+        this.load.audio('trashDisposalSound', 'trash_disposal.mp3');
+        this.load.audio('cuttingKitchenSound', 'chopping_kitchen.mp3');
         this.load.audio('drawKnifeSound', 'draw_knife.wav');
+        this.load.audio('cookingKitchenSound', 'cooking_kitchen.mp3');
+        this.load.audio('boilingWaterSound', 'boilingwater.mp3');
+        this.load.audio('clockTickingSound', 'clock_ticking.mp3');
         this.load.audio('eatingSound', 'eating_sound.mp3');
         this.load.audio('fallingSound', 'falling_sound.mp3');
         this.load.audio('fightingSound', 'fighting_sound.mp3');
         this.load.audio('flameBurningSound', 'flame_burning.mp3');
         this.load.audio('fryingEggSound', 'frying_egg.mp3');
-        this.load.audio('gameCountdownSound', 'game_star_countdown.mp3');
+        this.load.audio('gameCountdownSound', 'game_start_countdown.mp3');
         this.load.audio('goldGameSound', 'gold_game.mp3');
         this.load.audio('pickupSound', 'pickup.wav');
         this.load.audio('sodaSound', 'soda.mp3');
-        this.load.audio('trashDisposalSound', 'trash_disposal.mp3');
                 
         // Load UI assets
         this.load.setPath('assets/ui/');
         this.load.image('musicOn', 'music-on.png');
         this.load.image('musicOff', 'music-off.png');
+
+        this.load.on('complete', () => {
+            console.log('All assets loaded successfully');
+        });
+
+        this.load.on('loaderror', (file) => {
+            console.error('Error loading file:', file.src);
+        });
     }
 
     
 
     create ()
     {
+        console.log('Sound system state:', {
+            locked: this.sound.locked,
+            context: !!this.sound.context,
+            noAudio: this.sound.noAudio
+        });
+
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
 
         // Initialize game music with proper context
         this.game.music = this.sound.add('backgroundMusic', {
             loop: true,
-            volume: 0.5,
+            volume: 0.3,
             delay: 0
         });
 
@@ -160,7 +176,7 @@ export class Preloader extends Scene
 
         // Move to MainMenu
         this.add.image(512, 384, 'mainMenuBackground');
-        this.scene.start('MainMenu');
+        this.scene.start('OvercookedGame');
     }
 
     shutdown() {
