@@ -2,283 +2,175 @@ export class CuttingManager {
     constructor(scene) {
         this.scene = scene;
         this.isCutting = false;
-        this.cuttingTimer = null;
-        this.cuttingProgress = null;
-        this.timerGroup = null;
-        this.timeLeft = 0;
-        this.spaceKeyIsDown = false;
-        this.currentCuttingSound = null;
+        this.currentCharacter = null;
+        this.cuttingProgress = 0;
+        this.cuttingSound = null;
+        this.requiredCuttingTime = 5000; // 5 seconds
+        this.penaltyPoints = -10;
+        this.progressBar = null;
+        this.progressFill = null;
+        this.progressText = null;
     }
 
-    startCuttingTimer(player) {
-        if (this.isCutting) return;
-        
-        if (!player.heldIngredient) {
-            console.log('No held ingredient to cut');
+    startCuttingTimer(character) {
+        const isAtCuttingBoard = character.currentZone === 'cuttingBoard' || 
+                                character.currentZone === 'leftCuttingBoard';
+                                
+        if (!isAtCuttingBoard || this.isCutting) {
             return;
         }
 
-        try {
-            console.log('Playing draw knife sound...');
-            const drawKnifeSound = this.scene.sound.add('drawKnifeSound');
-            if (!drawKnifeSound) {
-                console.error('Failed to create draw knife sound');
-                return;
-            }
-            drawKnifeSound.play({ volume: 0.5 });
-            
-            drawKnifeSound.once('complete', () => {
-                console.log('Draw knife sound completed, starting cutting sound...');
-                this.currentCuttingSound = this.scene.sound.add('cuttingKitchenSound', { 
-                    loop: true,
-                    volume: 0.5
-                });
-                if (!this.currentCuttingSound) {
-                    console.error('Failed to create cutting sound');
-                    return;
-                }
-                this.currentCuttingSound.play({ volume: 1 });
-                drawKnifeSound.destroy();
-            });
-        } catch (error) {
-            console.error('Error playing cutting sounds:', error);
-        }
+        // Get the ingredient from the cutting board
+        const boardIngredients = this.scene.ingredientManager.placedIngredients[character.currentZone];
+        if (boardIngredients.length === 0) return;
+
+        const ingredientToCut = boardIngredients[0];
+        if (ingredientToCut.state !== 'raw') return;
 
         this.isCutting = true;
-        this.spaceKeyIsDown = true;
-    
-        // Create timer group to manage all elements
-        this.timerGroup = this.scene.add.group();
-        const timerY = player.y + player.displayHeight + 15;
-        
-        // Constants for bar dimensions
-        const BAR_WIDTH = 150;
-        const BAR_HEIGHT = 12;
-        
-        // Background bar (dark border)
-        this.timerBg = this.scene.add.rectangle(
-            player.x + player.displayWidth / 2,
-            timerY,
-            BAR_WIDTH,
-            BAR_HEIGHT,
-            0x333333
-        ).setOrigin(0.5, 0.5);
-        this.timerGroup.add(this.timerBg);
-        
-        // Progress bar background
-        this.progressBg = this.scene.add.rectangle(
-            player.x + player.displayWidth / 2,
-            timerY,
-            BAR_WIDTH,
-            BAR_HEIGHT,
-            0x005500
-        ).setOrigin(0.5, 0.5);
-        this.timerGroup.add(this.progressBg);
-    
-        // Main progress bar
-        this.cuttingProgress = this.scene.add.rectangle(
-            player.x + player.displayWidth / 2,
-            timerY,
-            BAR_WIDTH,
-            BAR_HEIGHT,
-            0x00ff00
-        ).setOrigin(0.5, 0.5);
-        this.timerGroup.add(this.cuttingProgress);
-    
-        // Timer text
-        this.timerText = this.scene.add.text(
-            player.x + player.displayWidth / 2,
-            timerY - 25,
-            '5.0',
+        this.currentCharacter = character;
+        this.cuttingProgress = 0;
+
+        // Create progress bar
+        const barX = ingredientToCut.gameObject.x;
+        const barY = ingredientToCut.gameObject.y - 40;
+
+        this.progressBar = this.scene.add.rectangle(
+            barX,
+            barY,
+            100,
+            15,
+            0x000000,
+            0.8
+        ).setOrigin(0.5).setDepth(1);
+
+        this.progressFill = this.scene.add.rectangle(
+            barX - 48,
+            barY,
+            0,
+            11,
+            0x00ff00,
+            1
+        ).setOrigin(0, 0.5).setDepth(2);
+
+        this.progressText = this.scene.add.text(
+            barX,
+            barY - 20,
+            '0%',
             {
-                fontSize: '24px',
-                fontWeight: 'bold',
-                fill: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4
+                fontSize: '16px',
+                fill: '#ffffff'
             }
-        ).setOrigin(0.5);
-        this.timerGroup.add(this.timerText);
-    
-        // "Cutting..." text
-        this.cuttingText = this.scene.add.text(
-            player.x + player.displayWidth / 2,
-            timerY - 50,
-            'Cutting...',
-            {
-                fontSize: '20px',
-                fill: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 3
-            }
-        ).setOrigin(0.5);
-        this.timerGroup.add(this.cuttingText);
-    
-        // Cutting animation (knife icon or simple flash)
-        const cutIndicator = this.scene.add.rectangle(
-            player.x + player.displayWidth / 2,
-            timerY,
-            20,
-            20,
-            0xffffff
-        ).setAlpha(0);
-        this.timerGroup.add(cutIndicator);
-    
-        // Cutting indicator animation
-        this.scene.tweens.add({
-            targets: cutIndicator,
-            alpha: 0.5,
-            yoyo: true,
-            duration: 200,
-            repeat: 24
+        ).setOrigin(0.5).setDepth(2);
+
+        // Start cutting sound
+        this.cuttingSound = this.scene.sound.add('cuttingKitchenSound', {
+            loop: true,
+            volume: 0.3
         });
-    
-        // Progress bar animation
-        this.scene.tweens.add({
-            targets: this.cuttingProgress,
-            width: 0,
-            duration: 5000,
-            ease: 'Linear'
-        });
-    
-        // Store timeLeft in class scope
-        this.timeLeft = 5.0;
-        
-        // Store the countdown timer reference
-        this.countdownTimer = this.scene.time.addEvent({
-            delay: 100,
-            callback: () => {
-                if (!this.timerText || !this.isCutting) {
-                    if (this.countdownTimer) {
-                        this.countdownTimer.remove();
-                        this.countdownTimer = null;
-                    }
-                    return;
-                }
-                
-                this.timeLeft -= 0.1;
-                if (this.timeLeft > 0) {
-                    this.timerText.setText(this.timeLeft.toFixed(1));
-                }
-            },
-            repeat: 49
-        });
-    
-        // Main cutting timer
-        this.cuttingTimer = this.scene.time.addEvent({
-            delay: 5000,
-            callback: () => {
-                if (this.countdownTimer) {
-                    this.countdownTimer.remove();
-                    this.countdownTimer = null;
-                }
-                
-                this.cleanupCuttingTimer();
-                this.completeCutting(player);
-            },
-            loop: false
-        });
-    
-        // Pulse animation for cutting text
-        this.scene.tweens.add({
-            targets: this.cuttingText,
-            scaleX: 1.1,
-            scaleY: 1.1,
-            duration: 500,
-            yoyo: true,
-            repeat: -1
-        });
+        this.cuttingSound.play();
     }
 
-    cleanupCuttingTimer() {
-        // Stop and cleanup all sounds
-        if (this.currentCuttingSound) {
-            this.currentCuttingSound.stop();
-            this.currentCuttingSound.destroy();
-            this.currentCuttingSound = null;
+    failCutting() {
+        if (!this.currentCharacter) return;
+
+        const boardIngredients = this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone];
+        if (boardIngredients.length > 0) {
+            const ingredient = boardIngredients[0];
+            ingredient.gameObject.destroy();
+            
+            // Clear the cutting board
+            this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone] = [];
+
+            // Create penalty effect
+            this.scene.createTrashEffect(ingredient.gameObject.x, ingredient.gameObject.y);
+            
+            // Add penalty points
+            this.scene.addPoints(this.penaltyPoints);
+        }
+        
+        this.cleanup();
+    }
+
+    completeCutting() {
+        if (!this.currentCharacter) return;
+
+        const boardIngredients = this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone];
+        if (boardIngredients.length > 0) {
+            const ingredient = boardIngredients[0];
+            const ingredientName = ingredient.name.toLowerCase();
+            
+            // Update the texture and state
+            ingredient.gameObject.setTexture(`${ingredientName}2`);
+            ingredient.state = 'prepped';
+            ingredient.gameObject.setScale(0.2);
+
+            // Give the cut ingredient to the character
+            this.currentCharacter.heldIngredient = ingredient;
+            
+            // Clear the cutting board
+            this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone] = [];
+
+            // Play completion sound
+            const completionSound = this.scene.sound.add('drawKnifeSound');
+            completionSound.play({ volume: 0.5 });
+        }
+        
+        this.cleanup();
+    }
+
+    update(time, delta) {
+        if (!this.isCutting || !this.currentCharacter) return;
+
+        const isInteractHeld = this.currentCharacter === this.scene.characterManager.getCharacter('chef') ?
+            this.scene.input.keyboard.addKey('E').isDown :
+            this.scene.input.keyboard.addKey('SPACE').isDown;
+
+        if (!isInteractHeld) {
+            this.failCutting();
+            return;
         }
 
-        if (this.countdownTimer) {
-            this.countdownTimer.remove();
-            this.countdownTimer = null;
+        this.cuttingProgress += delta;
+        
+        // Update progress bar and text
+        if (this.progressFill && this.progressBar) {
+            const progress = Math.min(this.cuttingProgress / this.requiredCuttingTime, 1);
+            this.progressFill.width = 96 * progress;
+            
+            if (this.progressText) {
+                const percentage = Math.floor(progress * 100);
+                this.progressText.setText(`${percentage}%`);
+            }
         }
-        if (this.cuttingTimer) {
-            this.cuttingTimer.remove();
-            this.cuttingTimer = null;
+
+        if (this.cuttingProgress >= this.requiredCuttingTime) {
+            this.completeCutting();
         }
-    
-        this.scene.tweens.killTweensOf(this.cuttingText);
-        this.scene.tweens.killTweensOf(this.cuttingProgress);
-    
-        if (this.timerGroup) {
-            this.timerGroup.clear(true, true);
-            this.timerGroup.destroy();
-            this.timerGroup = null;
+    }
+
+    cleanup() {
+        if (this.cuttingSound) {
+            this.cuttingSound.stop();
+            this.cuttingSound.destroy();
+            this.cuttingSound = null;
+        }
+
+        if (this.progressBar) {
+            this.progressBar.destroy();
+            this.progressBar = null;
+        }
+        if (this.progressFill) {
+            this.progressFill.destroy();
+            this.progressFill = null;
+        }
+        if (this.progressText) {
+            this.progressText.destroy();
+            this.progressText = null;
         }
 
         this.isCutting = false;
-        this.spaceKeyIsDown = false;
-        this.timeLeft = 0;
-    }
-
-    completeCutting(player) {
-        try {
-            if (!player.heldIngredient) {
-                console.log('No held ingredient to transform');
-                return;
-            }
-
-            const oldImage = player.heldIngredient.gameObject;
-            const ingredientName = player.heldIngredient.name;
-            const oldX = oldImage.x;
-            const oldY = oldImage.y;
-
-            // Create new image first
-            const newImage = this.scene.add.image(
-                oldX,
-                oldY,
-                `${ingredientName.toLowerCase()}2`
-            )
-            .setInteractive()
-            .setScale(0.3);
-
-            // Update the held ingredient reference
-            oldImage.destroy();
-            player.heldIngredient.gameObject = newImage;
-
-            // Clean up timers and UI after transformation is complete
-            this.cleanupCuttingTimer();
-            
-            console.log('Cutting completed successfully:', {
-                ingredientName,
-                newTexture: `${ingredientName.toLowerCase()}2`,
-                position: { x: oldX, y: oldY }
-            });
-        } catch (error) {
-            console.error('Error in completeCutting:', error);
-            console.error('Debug state:', {
-                hasHeldIngredient: !!player.heldIngredient,
-                ingredientName: player.heldIngredient?.name,
-                spaceKeyIsDown: this.spaceKeyIsDown
-            });
-        }
-    }
-
-    cancelCutting(player) {
-        // Stop and cleanup all sounds
-        if (this.currentCuttingSound) {
-            this.currentCuttingSound.stop();
-            this.currentCuttingSound.destroy();
-            this.currentCuttingSound = null;
-        }
-
-        if (this.isCutting && player.heldIngredient) {
-            this.scene.score -= 5;
-            this.scene.scoreText.setText(`Score: ${this.scene.score}`);
-            
-            player.heldIngredient.gameObject.destroy();
-            player.heldIngredient = null;
-        }
-        this.cleanupCuttingTimer();
+        this.currentCharacter = null;
+        this.cuttingProgress = 0;
     }
 } 

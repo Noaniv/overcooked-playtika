@@ -30,6 +30,15 @@ export class Preloader extends Scene
     preload ()
     {
         //  Load the assets for the game - Replace with your own assets
+
+        this.load.setPath('assets/basket_ingredients/');
+
+        this.load.image('avocado0', 'avocados0.png');
+        this.load.image('cheese0', 'cheese0.png');
+        this.load.image('meat0', 'meat0.png');
+        this.load.image('tomato0', 'tomatoes0.png');
+        this.load.image('tortilla0', 'tortillas0.png');
+
         this.load.setPath('assets/raw_ingredients/');
 
         this.load.image('avocado1', 'avocado1.png');
@@ -76,7 +85,24 @@ export class Preloader extends Scene
 
         this.load.image('ChefImage', 'ChefImage.jpeg');
         this.load.image('Sous_chefImage', 'Sous_chefImage.jpeg');
-
+        this.load.spritesheet('character2', 
+            'character2.png',
+            { 
+                frameWidth: 21,
+                frameHeight: 31,
+                spacing: 0,
+                margin: 0
+            }
+        );
+        this.load.spritesheet('character1', 
+            'character1.png',
+            { 
+                frameWidth: 21,
+                frameHeight: 31,
+                spacing: 0,
+                margin: 0
+            }
+        );
         this.load.setPath('assets/scenery/');
 
         this.load.image('logo', 'Logo.png');
@@ -128,6 +154,64 @@ export class Preloader extends Scene
             context: !!this.sound.context,
             noAudio: this.sound.noAudio
         });
+       
+        // Character 1 animations
+        this.anims.create({
+            key: 'character1-walk-down',
+            frames: this.anims.generateFrameNumbers('character1', { start: 0, end: 2 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'character1-walk-left',
+            frames: this.anims.generateFrameNumbers('character1', { start: 3, end: 5 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'character1-walk-right',
+            frames: this.anims.generateFrameNumbers('character1', { start: 6, end: 8 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'character1-walk-up',
+            frames: this.anims.generateFrameNumbers('character1', { start: 9, end: 11 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        // Character 2 animations
+        this.anims.create({
+            key: 'character2-walk-down',
+            frames: this.anims.generateFrameNumbers('character2', { start: 0, end: 2 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'character2-walk-left',
+            frames: this.anims.generateFrameNumbers('character2', { start: 3, end: 5 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'character2-walk-right',
+            frames: this.anims.generateFrameNumbers('character2', { start: 6, end: 8 }),
+            frameRate: 8,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'character2-walk-up',
+            frames: this.anims.generateFrameNumbers('character2', { start: 9, end: 11 }),
+            frameRate: 8,
+            repeat: -1
+        });
 
         //  When all the assets have loaded, it's often worth creating global objects here that the rest of the game can use.
         //  For example, you can define global animations here, so we can use them in other scenes.
@@ -135,7 +219,7 @@ export class Preloader extends Scene
         // Initialize game music with proper context
         this.game.music = this.sound.add('backgroundMusic', {
             loop: true,
-            volume: 0.3,
+            volume: 0,
             delay: 0
         });
 
