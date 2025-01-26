@@ -869,4 +869,66 @@ export class OvercookedGame extends Scene {
             }
         }
     }
+
+    handleCookingStationDropoff(chef) {
+        if (!chef.heldIngredient) return;
+
+        const cookingStation = this.zoneManager.getZone('cookingStation');
+        // Initialize the cooking station array if it doesn't exist
+        if (!this.ingredientManager.placedIngredients.cookingStation) {
+            this.ingredientManager.placedIngredients.cookingStation = [];
+        }
+
+        // Add the new ingredient with its state
+        const newIngredient = {
+            ...chef.heldIngredient,
+            state: chef.heldIngredient.state || 'raw'  // Ensure state exists
+        };
+        
+        this.ingredientManager.placedIngredients.cookingStation.push(newIngredient);
+        
+        // Position the ingredient on the cooking station
+        if (newIngredient.gameObject) {
+            newIngredient.gameObject.setPosition(
+                cookingStation.x + (Math.random() * 30) - 15,
+                cookingStation.y + (Math.random() * 30) - 15
+            );
+        }
+
+        // Clear the chef's held ingredient
+        chef.heldIngredient = null;
+
+        console.log('Current ingredients on cooking station:', 
+            this.ingredientManager.placedIngredients.cookingStation.map(ing => ({
+                name: ing.name,
+                state: ing.state
+            }))
+        );
+
+        // Check recipe completion
+        const isComplete = this.recipeManager.checkRecipeCompletion(
+            this.ingredientManager.placedIngredients.cookingStation
+        );
+        
+        console.log('Recipe completion check result:', isComplete);
+
+        if (isComplete) {
+            console.log('Recipe completed!');
+            
+            // Clear cooking station
+            this.ingredientManager.placedIngredients.cookingStation.forEach(ing => {
+                if (ing.gameObject) {
+                    ing.gameObject.destroy();
+                }
+            });
+            this.ingredientManager.placedIngredients.cookingStation = [];
+
+            // Complete the recipe
+            this.recipeManager.completeRecipe();
+
+            // Play success sound
+            const successSound = this.sound.add('pickupSound');
+            successSound.play({ volume: 0.3 });
+        }
+    }
 }

@@ -145,6 +145,9 @@ export class Preloader extends Scene
         this.load.image('musicOn', 'music-on.png');
         this.load.image('musicOff', 'music-off.png');
 
+        // Load sounds
+        this.load.audio('cookingSound', 'assets/sounds/cooking.mp3');
+
         this.load.on('complete', () => {
             console.log('All assets loaded successfully');
         });
@@ -228,7 +231,7 @@ export class Preloader extends Scene
         // Initialize game music with proper context
         this.game.music = this.sound.add('backgroundMusic', {
             loop: true,
-            volume: 0,
+            volume: 0.2,
             delay: 0
         });
 

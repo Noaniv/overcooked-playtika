@@ -3,11 +3,10 @@ export class IngredientManager {
         this.scene = scene;
         this.ingredients = [];
         this.placedIngredients = {
-            divider: [],
             cookingStation: [],
             cuttingBoard: [],
             leftCuttingBoard: [],
-            sidebar: []
+            divider: []
         };
         this.dividerSlots = [
             { occupied: false, y: 0 },
@@ -102,16 +101,42 @@ export class IngredientManager {
     }
 
     createIngredientZone(x, y, name) {
-        // Check if the ingredient is meat and adjust size
+        // Check if the ingredient is meat or a completed meal
         const isMeat = name.toLowerCase().includes('meat');
-        const width = isMeat ? 130 : 125; // Increase width for meat
-        const height = isMeat ? 200 : 85; // Increase height for meat
+        const isCompletedMeal = name.toLowerCase().includes('complete');
+        
+        // Adjust size based on ingredient type
+        let width, height;
+        if (isMeat) {
+            width = 130;
+            height = 200;
+        } else if (isCompletedMeal) {
+            width = 100;
+            height = 100;
+        } else {
+            width = 125;
+            height = 85;
+        }
 
         const zone = this.scene.add.zone(x, y, width, height)
             .setOrigin(0.5)
             .setName(name);
-
+        
         this.scene.physics.add.existing(zone, true);
+
+        // Add debug visualization if in debug mode
+        if (this.scene.game.config.physics.arcade?.debug) {
+            const debugGraphics = this.scene.add.graphics()
+                .setDepth(100)
+                .lineStyle(1, 0xff0000);
+            debugGraphics.strokeRect(
+                zone.x - (width/2),
+                zone.y - (height/2),
+                width,
+                height
+            );
+        }
+
         return zone;
     }
 
@@ -177,57 +202,167 @@ export class IngredientManager {
         this.placedIngredients.cookingStation = [];
     }
 
+    createNewIngredient(name, x, y, state = 'raw', scale = 0.3) {
+        return {
+            name: name,
+            gameObject: this.scene.add.image(x, y, `${name.toLowerCase()}1`)
+                .setScale(scale)
+                .setOrigin(0.5),
+            state: state,
+            originalScale: scale,
+            interactiveZone: this.createIngredientZone(x, y, name)
+        };
+    }
+
     findInteractingIngredient(character) {
-        // Debug the interaction check
-        console.log('Checking interaction zones');
-        
-        // First check cooking station if character is in that zone
+        // First check cooking station
         if (character.currentZone === 'cookingStation' && 
             this.placedIngredients.cookingStation.length > 0) {
             
             const cookingStationIngredients = this.placedIngredients.cookingStation;
             const topIngredient = cookingStationIngredients[cookingStationIngredients.length - 1];
             
-            // Check if character's interaction zone overlaps with the ingredient
             const charBounds = character.interactionZone.getBounds();
             const ingBounds = topIngredient.gameObject.getBounds();
             
-            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds) && !topIngredient.isCompletedMeal) {
-                console.log('Found ingredient in cooking station:', topIngredient);
+            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
+                // If it's a completed meal
+                if (topIngredient.isCompletedMeal) {
+                    return {
+                        name: topIngredient.name,
+                        state: 'completed',
+                        x: character.x,
+                        y: character.y,
+                        isCompletedMeal: true,
+                        points: topIngredient.points,
+                        result: topIngredient.result
+                    };
+                }
+                
+                // For regular ingredients
+                if (topIngredient.gameObject) {
+                    topIngredient.gameObject.destroy();
+                }
+                if (topIngredient.interactiveZone) {
+                    topIngredient.interactiveZone.destroy();
+                }
+                
                 // Remove from cooking station
                 this.placedIngredients.cookingStation.pop();
-                return topIngredient;
+                
+                return {
+                    name: topIngredient.name,
+                    state: topIngredient.state || 'raw',
+                    x: character.x,
+                    y: character.y,
+                    isFromStation: true
+                };
+            }
+        }
+
+        // First check cutting boards
+        if ((character.currentZone === 'cuttingBoard' || character.currentZone === 'leftCuttingBoard') && 
+            this.placedIngredients[character.currentZone]?.length > 0) {
+            
+            const boardIngredients = this.placedIngredients[character.currentZone];
+            const topIngredient = boardIngredients[boardIngredients.length - 1];
+            
+            const charBounds = character.interactionZone.getBounds();
+            const ingBounds = topIngredient.gameObject.getBounds();
+            
+            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
+                // Only allow pickup if ingredient is prepped
+                if (topIngredient.state !== 'prepped') {
+                    console.log('Cannot pick up unprepped ingredient from cutting board');
+                    return null;
+                }
+
+                // Properly destroy the original ingredient
+                if (topIngredient.gameObject) {
+                    topIngredient.gameObject.destroy();
+                }
+                if (topIngredient.interactiveZone) {
+                    topIngredient.interactiveZone.destroy();
+                }
+                
+                // Remove from cutting board
+                this.placedIngredients[character.currentZone].pop();
+                
+                // Return the ingredient info with its state
+                return {
+                    name: topIngredient.name,
+                    state: 'prepped',
+                    x: character.x,
+                    y: character.y,
+                    isFromStation: true
+                };
             }
         }
         
-        // Then check raw ingredients in sidebar
-        const interactingIngredient = this.ingredients.find(ingredient => {
+        // Then check divider
+        if (character.currentZone === 'divider' && 
+            this.placedIngredients.divider.length > 0) {
+            
+            const dividerIngredients = this.placedIngredients.divider;
+            const topIngredient = dividerIngredients[dividerIngredients.length - 1];
+            
+            const charBounds = character.interactionZone.getBounds();
+            const ingBounds = topIngredient.gameObject.getBounds();
+            
+            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
+                // Properly destroy the original ingredient and its components
+                if (topIngredient.gameObject) {
+                    topIngredient.gameObject.destroy();
+                }
+                if (topIngredient.interactiveZone) {
+                    topIngredient.interactiveZone.destroy();
+                }
+                if (topIngredient.timer) {
+                    topIngredient.timer.remove();
+                }
+                if (topIngredient.timerContainer) {
+                    topIngredient.timerContainer.destroy();
+                }
+                
+                // Remove from divider and clear slot
+                if (typeof topIngredient.slotIndex === 'number') {
+                    this.dividerSlots[topIngredient.slotIndex].occupied = false;
+                }
+                this.placedIngredients.divider.pop();
+                
+                // Return the ingredient info
+                return {
+                    name: topIngredient.name,
+                    state: topIngredient.state,
+                    x: character.x,
+                    y: character.y,
+                    isFromStation: true
+                };
+            }
+        }
+        
+        // Finally check raw ingredients in sidebar
+        const sidebarIngredient = this.ingredients.find(ingredient => {
             const bounds = ingredient.interactiveZone.getBounds();
             const charBounds = character.interactionZone.getBounds();
-            const isOverlapping = Phaser.Geom.Rectangle.Overlaps(bounds, charBounds);
-            
-            console.log('Checking ingredient:', {
-                name: ingredient.name,
-                ingredientBounds: bounds,
-                characterBounds: charBounds,
-                isOverlapping
-            });
-            
-            return isOverlapping;
+            return Phaser.Geom.Rectangle.Overlaps(bounds, charBounds);
         });
 
-        return interactingIngredient;
+        if (sidebarIngredient) {
+            return {
+                name: sidebarIngredient.name,
+                x: sidebarIngredient.x,
+                y: sidebarIngredient.y,
+                state: 'raw',
+                isFromSidebar: true
+            };
+        }
+
+        return null;
     }
 
     handleIngredientPickup(character) {
         if (character.heldIngredient) return;
-
-        // Debug logs
-        console.log('Attempting pickup:', {
-            character: character === this.scene.characterManager.chef ? 'chef' : 'sousChef',
-            currentZone: character.currentZone,
-            position: { x: character.x, y: character.y }
-        });
 
         // First check if we're at cooking station and there's a completed meal
         if (character.currentZone === 'cookingStation' && 
@@ -235,55 +370,34 @@ export class IngredientManager {
             this.placedIngredients.cookingStation[0].isCompletedMeal) {
             
             const completedMeal = this.placedIngredients.cookingStation[0];
-            console.log('Picking up completed meal:', completedMeal);
-            
             character.heldIngredient = completedMeal;
             this.placedIngredients.cookingStation = [];
             
-            // Play pickup sound
             const pickupSound = this.scene.sound.add('pickupSound');
             pickupSound.play({ volume: 0.3 });
             return;
         }
 
-        // Then check for raw ingredients
-        const rawIngredient = this.findInteractingIngredient(character);
-        if (rawIngredient) {
-            console.log('Found raw ingredient:', {
-                name: rawIngredient.name,
-                position: { x: rawIngredient.x, y: rawIngredient.y }
-            });
-
-            // Stop pulsing the raw ingredient
-            if (rawIngredient.isPulsing) {
-                this.removePulseEffect(rawIngredient);
-                rawIngredient.isPulsing = false;
-                rawIngredient.pulsingCharacter = null;
+        // Then check for ingredients
+        const foundIngredient = this.findInteractingIngredient(character);
+        if (foundIngredient) {
+            // Stop pulsing if applicable
+            if (foundIngredient.isPulsing) {
+                this.removePulseEffect(foundIngredient);
+                foundIngredient.isPulsing = false;
+                foundIngredient.pulsingCharacter = null;
             }
 
-            // Create new instance of ingredient with texture1
-            const newIngredient = {
-                name: rawIngredient.name,
-                gameObject: this.scene.add.image(
-                    rawIngredient.x,
-                    rawIngredient.y,
-                    `${rawIngredient.name.toLowerCase()}1`
-                )
-                    .setScale(0.3)
-                    .setOrigin(0.5),
-                state: 'raw',
-                originalScale: 0.2,
-                interactiveZone: this.createIngredientZone(rawIngredient.x, rawIngredient.y, rawIngredient.name)
-            };
+            // Create new instance using the shared method
+            character.heldIngredient = this.createNewIngredient(
+                foundIngredient.name,
+                foundIngredient.x,
+                foundIngredient.y,
+                foundIngredient.state || 'raw'
+            );
 
-            character.heldIngredient = newIngredient;
-            console.log('Picked up ingredient:', newIngredient);
-
-            // Play pickup sound
             const pickupSound = this.scene.sound.add('pickupSound');
             pickupSound.play({ volume: 0.3 });
-        } else {
-            console.log('Failed to pick up ingredient');
         }
     }
 
@@ -437,30 +551,62 @@ export class IngredientManager {
         this.placedIngredients.cookingStation.push(character.heldIngredient);
         character.heldIngredient = null;
 
-        // Check recipe completion after adding new ingredient
-        const currentIngredients = this.placedIngredients.cookingStation.map(ing => ing.name);
-        console.log('Checking recipe with ingredients:', currentIngredients);
+        // Play cooking sound
+        const cookingSound = this.scene.sound.add('cookingKitchenSound');
+        cookingSound.play({ 
+            volume: 0.3,
+            duration: 1000
+        });
 
-        if (this.scene.recipeManager.checkRecipeCompletion(this.placedIngredients.cookingStation)) {
+        // Check recipe completion after adding new ingredient
+        const currentIngredients = this.placedIngredients.cookingStation;
+        console.log('Current ingredients in cooking station:', currentIngredients.map(ing => ({
+            name: ing.name,
+            state: ing.state
+        })));
+
+        if (this.scene.recipeManager.checkRecipeCompletion(currentIngredients)) {
             console.log('Recipe complete!');
-            // Create the completed meal
+            
+            // Clear existing ingredients first
+            this.clearCookingStation();
+            
+            // Get the current recipe
             const recipe = this.scene.recipeManager.currentRecipe;
+            
+            // Create the completed meal with proper properties
             const completedMeal = {
                 name: recipe.name,
                 gameObject: this.scene.add.image(dropPos.x, dropPos.y, recipe.result)
-                    .setScale(0.4),
+                    .setScale(0.4)
+                    .setInteractive(),
                 isCompletedMeal: true,
-                points: 50
+                points: 50,
+                state: 'completed',
+                interactiveZone: this.createIngredientZone(dropPos.x, dropPos.y, recipe.name)
             };
 
-            // Clear cooking station ingredients
-            this.clearCookingStation();
+            // Add visual feedback for completion
+            this.scene.tweens.add({
+                targets: completedMeal.gameObject,
+                scale: 0.5,
+                duration: 200,
+                yoyo: true,
+                repeat: 1
+            });
 
-            // Place completed meal
-            this.placedIngredients.cookingStation.push(completedMeal);
+            // Play success sound
+            const successSound = this.scene.sound.add('pickupSound');
+            successSound.play({ volume: 0.3 });
+
+            // Place completed meal in cooking station
+            this.placedIngredients.cookingStation = [completedMeal];
 
             // Move to next recipe
             this.scene.recipeManager.completeRecipe();
+
+            // Create success effect
+            this.createSuccessEffect(dropPos.x, dropPos.y);
         } else {
             console.log('Recipe not complete yet');
         }
@@ -476,6 +622,10 @@ export class IngredientManager {
         );
 
         this.placedIngredients[zoneName].push(character.heldIngredient);
+        
+        // Play drop sound
+        const dropSound = this.scene.sound.add('pickupSound');
+        dropSound.play({ volume: 0.3 });
         
         if (!this.scene.cuttingManager.isCutting) {
             this.scene.cuttingManager.startCuttingTimer(character);

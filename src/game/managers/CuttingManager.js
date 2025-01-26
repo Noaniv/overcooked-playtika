@@ -92,7 +92,19 @@ export class CuttingManager {
         this.cleanup();
     }
 
-    completeCutting() {
+    completeCutting(character) {
+        const cuttingBoard = character.currentZone;
+        const ingredients = this.scene.ingredientManager.placedIngredients[cuttingBoard];
+        
+        if (ingredients && ingredients.length > 0) {
+            // Mark the ingredient as prepped
+            ingredients.forEach(ingredient => {
+                ingredient.state = 'prepped';
+                console.log(`Marked ${ingredient.name} as prepped`);
+            });
+        }
+        
+        this.isCutting = false;
         if (!this.currentCharacter) return;
 
         const boardIngredients = this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone];
@@ -145,7 +157,7 @@ export class CuttingManager {
         }
 
         if (this.cuttingProgress >= this.requiredCuttingTime) {
-            this.completeCutting();
+            this.completeCutting(this.currentCharacter);
         }
     }
 

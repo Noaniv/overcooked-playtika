@@ -70,31 +70,82 @@ export class RecipeManager {
     }
 
     checkRecipeCompletion(placedIngredients) {
-        if (!this.currentRecipe) return false;
+        if (!this.currentRecipe) {
+            console.log('No current recipe to check');
+            return false;
+        }
 
-        // Get array of ingredient names
-        const placedNames = placedIngredients.map(ing => ing.name);
-        
-        console.log('Recipe check:', {
+        if (!Array.isArray(placedIngredients) || placedIngredients.length === 0) {
+            console.log('No ingredients placed or invalid input');
+            return false;
+        }
+
+        console.log('Checking recipe completion for:', this.currentRecipe.name);
+        console.log('Required ingredients:', this.currentRecipe.ingredients);
+        console.log('Placed ingredients:', placedIngredients.map(ing => ({
+            name: ing.name,
+            state: ing.state
+        })));
+
+        // Get array of ingredient names, ensuring they're all prepped
+        const placedNames = placedIngredients
+            .filter(ing => ing.state === 'prepped')
+            .map(ing => ing.name);
+
+        // Debug logging
+        console.log('Recipe completion check:', {
             required: this.currentRecipe.ingredients,
             placed: placedNames,
-            recipeName: this.currentRecipe.name
+            recipeName: this.currentRecipe.name,
+            allPrepped: placedIngredients.every(ing => ing.state === 'prepped')
         });
 
-        // Check if all required ingredients are present
-        const hasAllRequired = this.currentRecipe.ingredients.every(required => 
-            placedNames.includes(required)
-        );
+        // Check if all ingredients are prepped
+        if (!placedIngredients.every(ing => ing.state === 'prepped')) {
+            console.log('Not all ingredients are prepped');
+            return false;
+        }
+
+        // Check if all required ingredients are present (case-insensitive comparison)
+        const hasAllRequired = this.currentRecipe.ingredients.every(required => {
+            const found = placedNames.some(placed => 
+                placed.toLowerCase() === required.toLowerCase()
+            );
+            console.log(`Checking for ${required}: ${found}`);
+            return found;
+        });
 
         // Check if there are no extra ingredients
         const correctCount = placedNames.length === this.currentRecipe.ingredients.length;
 
-        return hasAllRequired && correctCount;
+        const isComplete = hasAllRequired && correctCount;
+        console.log('Recipe completion result:', {
+            hasAllRequired,
+            correctCount,
+            isComplete,
+            placedCount: placedNames.length,
+            requiredCount: this.currentRecipe.ingredients.length
+        });
+
+        return isComplete;
     }
 
     completeRecipe() {
+        if (!this.currentRecipe) {
+            console.warn('Cannot complete recipe: no current recipe');
+            return;
+        }
+
+        console.log('Completing recipe:', this.currentRecipe.name);
+
         // Award points
         this.scene.addPoints(50);
+        
+        // Emit completion event with recipe result
+        EventBus.emit('recipe-completed', {
+            name: this.currentRecipe.name,
+            result: this.currentRecipe.result
+        });
         
         // Move to next recipe
         this.cycleToNextRecipe();
