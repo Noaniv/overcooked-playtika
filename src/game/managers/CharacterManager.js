@@ -3,17 +3,24 @@ import { Character } from '../classes/Character';
 export class CharacterManager {
     constructor(scene) {
         this.scene = scene;
-        this.characters = new Map();
-        this.activeZoneOverlaps = new Map();
-        this.activeIngredientOverlaps = new Map();
+        this.chef = null;
+        this.sousChef = null;
+        this.activeZoneOverlaps = new Map([
+            ['chef', new Set()],
+            ['sousChef', new Set()]
+        ]);
+        this.activeIngredientOverlaps = new Map([
+            ['chef', new Set()],
+            ['sousChef', new Set()]
+        ]);
     }
 
     createCharacters(width, height) {
-        // Create chef (character1)
-        const chef = new Character(
+        // Create chef
+        this.chef = new Character(
             this.scene,
-            width * 0.2,
-            height * 0.5,
+            width * 0.75,
+            height * 0.75,
             'character1',
             {
                 up: 'W',
@@ -22,12 +29,13 @@ export class CharacterManager {
                 right: 'D'
             }
         );
+        this.chef.play('character1-walk-down');
 
-        // Create sous chef (character2)
-        const sousChef = new Character(
+        // Create sous chef
+        this.sousChef = new Character(
             this.scene,
-            width * 0.8,
-            height * 0.5,
+            width * 0.25,
+            height * 0.75,
             'character2',
             {
                 up: 'UP',
@@ -36,179 +44,99 @@ export class CharacterManager {
                 right: 'RIGHT'
             }
         );
+        this.sousChef.play('character2-walk-down');
 
-        // Store characters in map
-        this.characters.set('chef', chef);
-        this.characters.set('sousChef', sousChef);
-
-        // Initialize zone overlaps tracking
-        this.activeZoneOverlaps.set('chef', new Set());
-        this.activeZoneOverlaps.set('sousChef', new Set());
-        this.activeIngredientOverlaps.set('chef', new Set());
-        this.activeIngredientOverlaps.set('sousChef', new Set());
-
-        // Set initial animations
-        chef.gameObject.play('character1-walk-down');
-        chef.gameObject.anims.stop();
-        sousChef.gameObject.play('character2-walk-down');
-        sousChef.gameObject.anims.stop();
+        // Set up zone overlaps
+        this.setupZoneOverlaps();
     }
 
-    handleMovement(keys) {
-        const chef = this.characters.get('chef');
-        const sousChef = this.characters.get('sousChef');
+    setupZoneOverlaps(zones) {
+        if (!zones) return;
 
-        // Handle chef movement
-        if (keys.left.isDown) {
-            chef.gameObject.play('character1-walk-left', true);
-            chef.gameObject.setFlipX(false);
-        } else if (keys.right.isDown) {
-            chef.gameObject.play('character1-walk-right', true);
-            chef.gameObject.setFlipX(false);
-        } else if (keys.up.isDown) {
-            chef.gameObject.play('character1-walk-up', true);
-        } else if (keys.down.isDown) {
-            chef.gameObject.play('character1-walk-down', true);
-        } else if (chef.gameObject.anims.isPlaying) {
-            chef.gameObject.anims.stop();
-        }
+        Object.entries(zones).forEach(([zoneName, zone]) => {
+            // Set up overlap for chef
+            this.scene.physics.add.overlap(
+                this.chef.interactionZone,
+                zone,
+                () => this.handleZoneOverlap(this.chef, zoneName),
+                null,
+                this
+            );
 
-        // Handle sous chef movement
-        if (keys.left2.isDown) {
-            sousChef.gameObject.play('character2-walk-left', true);
-            sousChef.gameObject.setFlipX(false);
-        } else if (keys.right2.isDown) {
-            sousChef.gameObject.play('character2-walk-right', true);
-            sousChef.gameObject.setFlipX(false);
-        } else if (keys.up2.isDown) {
-            sousChef.gameObject.play('character2-walk-up', true);
-        } else if (keys.down2.isDown) {
-            sousChef.gameObject.play('character2-walk-down', true);
-        } else if (sousChef.gameObject.anims.isPlaying) {
-            sousChef.gameObject.anims.stop();
-        }
-
-        // Update character positions
-        chef.handleMovement();
-        sousChef.handleMovement();
-    }
-
-    setupZoneOverlaps(zoneSprites) {
-        for (const [characterId, character] of this.characters) {
-            Object.entries(zoneSprites).forEach(([zoneName, zoneSprite]) => {
-                this.scene.physics.add.overlap(
-                    character.interactionZone,
-                    zoneSprite,
-                    () => {
-                        this.activeZoneOverlaps.get(characterId).clear();
-                        this.activeZoneOverlaps.get(characterId).add(zoneName);
-                        this.updateCurrentZone(characterId);
-                    },
-                    null,
-                    this
-                );
-
-                zoneSprite.on('overlapend', (_, otherObject) => {
-                    if (otherObject === character.interactionZone) {
-                        this.activeZoneOverlaps.get(characterId).delete(zoneName);
-                        this.updateCurrentZone(characterId);
-                    }
-                });
-            });
-        }
+            // Set up overlap for sous chef
+            this.scene.physics.add.overlap(
+                this.sousChef.interactionZone,
+                zone,
+                () => this.handleZoneOverlap(this.sousChef, zoneName),
+                null,
+                this
+            );
+        });
     }
 
     setupIngredientOverlaps(ingredientZones) {
         console.log('Setting up ingredient overlaps for zones:', ingredientZones.map(z => z.name));
         
-        for (const [characterId, character] of this.characters) {
-            ingredientZones.forEach(zone => {
-                const ingredientName = zone.name;
+        ingredientZones.forEach(zone => {
+            const ingredientName = zone.name;
 
-                this.scene.physics.add.overlap(
-                    character.interactionZone,
-                    zone,
-                    () => {
-                        this.activeIngredientOverlaps.get(characterId).clear();
-                        this.activeIngredientOverlaps.get(characterId).add(ingredientName);
-                    },
-                    null,
-                    this
-                );
+            // Set up overlap for chef
+            this.scene.physics.add.overlap(
+                this.chef.interactionZone,
+                zone,
+                () => this.handleIngredientOverlap(this.chef, ingredientName),
+                null,
+                this
+            );
 
-                zone.on('overlapend', (_, otherObject) => {
-                    if (otherObject === character.interactionZone) {
-                        if (this.activeIngredientOverlaps.get(characterId).has(ingredientName)) {
-                            console.log(`${characterId} left ${ingredientName} ingredient zone`);
-                            this.activeIngredientOverlaps.get(characterId).delete(ingredientName);
-                        }
-                    }
-                });
-            });
-        }
+            // Set up overlap for sous chef
+            this.scene.physics.add.overlap(
+                this.sousChef.interactionZone,
+                zone,
+                () => this.handleIngredientOverlap(this.sousChef, ingredientName),
+                null,
+                this
+            );
+        });
     }
 
-    updateCurrentZone(characterId) {
-        const character = this.characters.get(characterId);
-        const overlaps = this.activeZoneOverlaps.get(characterId);
-        
-        if (overlaps.size === 0) {
-            character.currentZone = null;
-            return;
-        }
-        
-        // If multiple zones, prioritize them
-        const zonePriority = [
-            'cookingStation', 
-            'cuttingBoard',
-            'leftCuttingBoard',  // Add the new cutting board to priority list
-            'divider', 
-            'sidebar', 
-            'rightTrash', 
-            'leftTrash', 
-            'readyTable'
-        ];
-        
-        // Find the highest priority zone that we're overlapping with
-        character.currentZone = zonePriority.find(zone => overlaps.has(zone)) || null;
+    handleZoneOverlap(character, zoneName) {
+        const characterType = character === this.chef ? 'chef' : 'sousChef';
+        character.currentZone = zoneName;
+        this.activeZoneOverlaps.get(characterType).add(zoneName);
     }
 
-    updateHeldIngredients() {
-        for (const character of this.characters.values()) {
-            character.updateHeldIngredient();
+    handleIngredientOverlap(character, ingredientName) {
+        const characterType = character === this.chef ? 'chef' : 'sousChef';
+        this.activeIngredientOverlaps.get(characterType).add(ingredientName);
+    }
+
+    handleMovement(keys) {
+        if (this.chef) {
+            this.chef.handleMovement();
         }
+        if (this.sousChef) {
+            this.sousChef.handleMovement();
+        }
+
+        // Clear overlaps each frame
+        this.activeZoneOverlaps.get('chef').clear();
+        this.activeZoneOverlaps.get('sousChef').clear();
+        this.activeIngredientOverlaps.get('chef').clear();
+        this.activeIngredientOverlaps.get('sousChef').clear();
+    }
+
+    getCharacter(type) {
+        return type === 'chef' ? this.chef : this.sousChef;
     }
 
     isInZone(character, zoneName) {
-        // Allow either cutting board to count when checking for cutting board zone
-        if (zoneName === 'cuttingBoard') {
-            for (const [id, char] of this.characters) {
-                if (char === character) {
-                    return this.activeZoneOverlaps.get(id).has('cuttingBoard') || 
-                           this.activeZoneOverlaps.get(id).has('leftCuttingBoard');
-                }
-            }
-        }
-        
-        // Normal zone checking
-        for (const [id, char] of this.characters) {
-            if (char === character) {
-                return this.activeZoneOverlaps.get(id).has(zoneName);
-            }
-        }
-        return false;
+        const characterType = character === this.chef ? 'chef' : 'sousChef';
+        return this.activeZoneOverlaps.get(characterType).has(zoneName);
     }
 
     isNearIngredient(character, ingredientName) {
-        for (const [id, char] of this.characters) {
-            if (char === character) {
-                return this.activeIngredientOverlaps.get(id).has(ingredientName);
-            }
-        }
-        return false;
-    }
-
-    getCharacter(id) {
-        return this.characters.get(id);
+        const characterType = character === this.chef ? 'chef' : 'sousChef';
+        return this.activeIngredientOverlaps.get(characterType).has(ingredientName);
     }
 } 

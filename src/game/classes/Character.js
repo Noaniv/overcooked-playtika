@@ -1,6 +1,10 @@
-export class Character {
+export class Character extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y, texture, controls) {
+        super(scene, x, y, texture);
+        scene.add.existing(this); // Add sprite to the scene
+        
         this.scene = scene;
+        this.MOVEMENT_SPEED = 500; // Define speed as a class property
         
         // Calculate scaled size maintaining aspect ratio (21:31)
         const scale = 2.5; // Adjust this value to change overall size
@@ -9,16 +13,16 @@ export class Character {
         const scaledWidth = originalWidth * scale;
         const scaledHeight = originalHeight * scale;
 
-        this.gameObject = scene.add.sprite(x, y, texture)
-            .setOrigin(0.5)
-            .setDisplaySize(scaledWidth, scaledHeight)  // This maintains aspect ratio
+        // Set up sprite properties
+        this.setOrigin(0.5)
+            .setDisplaySize(scaledWidth, scaledHeight)
             .setInteractive();
 
         // Physics setup
-        scene.physics.add.existing(this.gameObject, false);
-        this.gameObject.body.setCollideWorldBounds(true);
-        this.gameObject.body.setBounce(0);
-        this.gameObject.body.setDrag(0);
+        scene.physics.add.existing(this);
+        this.setBounce(0.2);    // Add some bounce
+        this.setCollideWorldBounds(true);
+        this.setDrag(1000);     // Add drag to slow down after bounce
         
         this.heldIngredient = null;
         this.currentZone = null;
@@ -29,70 +33,102 @@ export class Character {
             right: scene.input.keyboard.addKey(controls.right)
         };
         this.INTERACTION_RADIUS = 60;
+        this.lastDirection = 'down'; // Track last direction for idle animation
 
         // Create interaction zone
         this.createInteractionZone();
+        this.canMove = true; // Add this property
     }
 
     createInteractionZone() {
         // Physics zone for interactions
         this.interactionZone = this.scene.add.circle(
-            this.gameObject.x + this.gameObject.displayWidth / 2,
-            this.gameObject.y + this.gameObject.displayHeight / 2,
+            this.x,
+            this.y,
             this.INTERACTION_RADIUS,
             0x0000ff,
-            0
+            0.2 // Slightly visible for debugging
         ).setDepth(-1);
-
-        // Debug visual
-        this.debugZone = this.scene.add.circle(
-            this.gameObject.x + this.gameObject.displayWidth / 2,
-            this.gameObject.y + this.gameObject.displayHeight / 2,
-            this.INTERACTION_RADIUS,
-            0x0000ff,
-            0
-        ).setStrokeStyle(2, 0x0000ff);
 
         // Add physics to interaction zone
         this.scene.physics.add.existing(this.interactionZone, false);
         this.interactionZone.body.setCircle(this.INTERACTION_RADIUS);
+        
+        // Make interaction zone follow the character
+        this.interactionZone.setData('followTarget', this);
+        this.interactionZone.setData('offsetY', -20); // Adjust as needed
     }
 
     handleMovement() {
-        const speed = 500;
-        this.gameObject.body.setVelocity(0);
+        if (!this.canMove) return;
+        
+        this.setVelocity(0);
+        let isMoving = false;
+        const characterType = this === this.scene.characterManager.chef ? 'character1' : 'character2';
 
         if (this.controls.left.isDown) {
-            this.gameObject.body.setVelocityX(-speed);
+            this.setVelocityX(-this.MOVEMENT_SPEED);
+            this.play(`${characterType}-walk-left`, true);
+            this.lastDirection = 'left';
+            isMoving = true;
         }
-        if (this.controls.right.isDown) {
-            this.gameObject.body.setVelocityX(speed);
+        else if (this.controls.right.isDown) {
+            this.setVelocityX(this.MOVEMENT_SPEED);
+            this.play(`${characterType}-walk-right`, true);
+            this.lastDirection = 'right';
+            isMoving = true;
         }
+
         if (this.controls.up.isDown) {
-            this.gameObject.body.setVelocityY(-speed);
+            this.setVelocityY(-this.MOVEMENT_SPEED);
+            if (!this.controls.left.isDown && !this.controls.right.isDown) {
+                this.play(`${characterType}-walk-up`, true);
+                this.lastDirection = 'up';
+            }
+            isMoving = true;
         }
-        if (this.controls.down.isDown) {
-            this.gameObject.body.setVelocityY(speed);
+        else if (this.controls.down.isDown) {
+            this.setVelocityY(this.MOVEMENT_SPEED);
+            if (!this.controls.left.isDown && !this.controls.right.isDown) {
+                this.play(`${characterType}-walk-down`, true);
+                this.lastDirection = 'down';
+            }
+            isMoving = true;
+        }
+
+        // If not moving, show idle frame based on last direction
+        if (!isMoving) {
+            this.setFrame(this.getIdleFrame(characterType, this.lastDirection));
+            this.stop(); // Stop any running animation
         }
 
         this.updateHeldIngredient();
         this.updateInteractionZone();
     }
 
+    getIdleFrame(characterType, direction) {
+        // Return the first frame of each directional animation as idle
+        switch (direction) {
+            case 'up': return 9;    // First frame of up animation
+            case 'down': return 0;  // First frame of down animation
+            case 'left': return 3;  // First frame of left animation
+            case 'right': return 6; // First frame of right animation
+            default: return 0;      // Default to down
+        }
+    }
+
     updateHeldIngredient() {
         if (this.heldIngredient) {
             this.heldIngredient.gameObject.setPosition(
-                this.gameObject.x + this.gameObject.displayWidth / 2,
-                this.gameObject.y - 20
+                this.x,
+                this.y - 20
             );
         }
     }
 
     updateInteractionZone() {
-        const centerX = this.gameObject.x + this.gameObject.displayWidth / 2;
-        const centerY = this.gameObject.y + this.gameObject.displayHeight / 2;
-        
-        this.interactionZone.setPosition(centerX, centerY);
-        this.debugZone.setPosition(centerX, centerY);
+        if (this.interactionZone) {
+            this.interactionZone.setPosition(this.x, this.y);
+        }
     }
 } 

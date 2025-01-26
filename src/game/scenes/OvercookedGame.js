@@ -64,7 +64,7 @@ export class OvercookedGame extends Scene {
         // Initialize ingredients
         this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x);
 
-        // Set up collisions
+        // Set up collisions after both zones and characters are created
         this.zoneManager.setupCollisions(this.characterManager);
 
         // Set up controls

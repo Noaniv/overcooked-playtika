@@ -3,6 +3,7 @@ export class CookingManager {
         this.scene = scene;
         this.isCooking = false;
         this.cookingSound = null;
+        this.cookingTimer = null;
     }
 
     startCooking() {
@@ -16,6 +17,11 @@ export class CookingManager {
             volume: 0.3
         });
         this.cookingSound.play();
+
+        // Set timer to stop cooking sound after 3 seconds
+        this.cookingTimer = this.scene.time.delayedCall(3000, () => {
+            this.stopCooking();
+        });
     }
 
     stopCooking() {
@@ -25,6 +31,11 @@ export class CookingManager {
             this.cookingSound.stop();
             this.cookingSound.destroy();
             this.cookingSound = null;
+        }
+
+        if (this.cookingTimer) {
+            this.cookingTimer.remove();
+            this.cookingTimer = null;
         }
     }
 

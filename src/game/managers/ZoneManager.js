@@ -3,13 +3,16 @@ export class ZoneManager {
         this.scene = scene;
         this.zones = {};
         this.zoneSprites = {};
+        this.collisionZones = [];
+        this.debugGraphics = scene.add.graphics(); // For debug visualization
+        this.debugCollisionGraphics = scene.add.graphics(); // For collision debug visualization
     }
 
     createZones(width, height, dividerWidth, dividerX) {
         this.zones = {
             sidebar: { x: width - 75, y: 0, width: 100, height: height },
             divider: { x: dividerX + 4, y: height/2 - 100, width: dividerWidth - 50, height: 310},
-            cookingStation: { x: 0, y: 0, width: 370, height: 130 },
+            cookingStation: { x: 380, y: 0, width: 190, height: 200 },
             cuttingBoard: { x: dividerX + 180, y: 0, width: 450, height: 200 },
             leftCuttingBoard: { x: 0, y: height/2 - 240, width: 100, height: 300 },
             leftTrash: { x: 0, y: height/2 + 120, width: 100, height: 100 },
@@ -17,8 +20,45 @@ export class ZoneManager {
             readyTable: { x: 0, y: height -150, width: 350, height: 180 }
         };
 
+        // Create collision zones
+        this.createCollisionZones(width, height, dividerWidth, dividerX);
+
         this.createZoneVisuals();
         return this.zones;
+    }
+
+    createCollisionZones(width, height, dividerWidth, dividerX) {
+        // Clear previous debug graphics
+        this.debugGraphics.clear();
+        this.debugCollisionGraphics.clear();
+
+        // Define collision zones (invisible walls)
+        const collisionAreas = [
+            { x: 0, y: -10, width: width, height: 170, name: 'Top Wall' },
+            { x: 0, y: height -145, width: 330, height: 170, name: 'Left Bottom Wall' },
+            { x: width - 350, y: height -145, width: 350, height: 190, name: 'Right Bottom Wall' },
+            { x: 0, y: 0, width: 80, height: height/2 +15, name: 'Left Wall' },
+            {x: width - 105, y: 0, width: 145, height: height, name: 'Right Wall' },
+            { x: dividerX + 55, y: height/2 - 80, width: dividerWidth - 150, height: 260, name: 'Center Divider' }
+        ];
+
+        // Create physical collision zones
+        collisionAreas.forEach(area => {
+            const collisionZone = this.scene.add.rectangle(
+                area.x + area.width/2,
+                area.y + area.height/2,
+                area.width,
+                area.height,
+                0xff0000,
+                0.5 // Invisible
+            );
+            
+            // Add physics to the collision zone
+            this.scene.physics.add.existing(collisionZone, true);
+            collisionZone.name = area.name;
+            this.collisionZones.push(collisionZone);
+
+        });
     }
 
     createZoneVisuals() {
@@ -29,7 +69,7 @@ export class ZoneManager {
                 zone.width,
                 zone.height,
                 0x00ff00,
-                .3
+                0
             ).setOrigin(0.5);
 
             this.scene.physics.add.existing(zoneRect, true);
@@ -77,7 +117,60 @@ export class ZoneManager {
     }
 
     setupCollisions(characterManager) {
-        characterManager.setupZoneOverlaps(this.zoneSprites);
+        // Set up collisions between characters and collision zones
+        this.collisionZones.forEach(zone => {
+            this.scene.physics.add.collider(
+                characterManager.chef,
+                zone,
+                () => this.handleCollision(characterManager.chef, zone),
+                null,
+                this
+            );
+            this.scene.physics.add.collider(
+                characterManager.sousChef,
+                zone,
+                () => this.handleCollision(characterManager.sousChef, zone),
+                null,
+                this
+            );
+        });
+
+        // Set up overlaps for interaction zones
+        Object.entries(this.zoneSprites).forEach(([zoneName, zoneSprite]) => {
+            this.scene.physics.add.overlap(
+                characterManager.chef.interactionZone,
+                zoneSprite,
+                () => characterManager.handleZoneOverlap(characterManager.chef, zoneName),
+                null,
+                this
+            );
+            this.scene.physics.add.overlap(
+                characterManager.sousChef.interactionZone,
+                zoneSprite,
+                () => characterManager.handleZoneOverlap(characterManager.sousChef, zoneName),
+                null,
+                this
+            );
+        });
+    }
+
+    handleCollision(character, zone) {
+        // Calculate bounce direction
+        const bounceForce = 100;
+        const dx = character.x - zone.x;
+        const dy = character.y - zone.y;
+        const angle = Math.atan2(dy, dx);
+
+        // Apply bounce force
+        character.setVelocityX(Math.cos(angle) * bounceForce);
+        character.setVelocityY(Math.sin(angle) * bounceForce);
+
+        // Optional: Add a small delay before the character can move again
+        character.canMove = false;
+        this.scene.time.delayedCall(100, () => {
+            character.canMove = true;
+            character.setVelocity(0, 0);
+        });
     }
 
     isNearZone(player, zoneName, radius = 60) {
