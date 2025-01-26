@@ -260,7 +260,7 @@ export class Preloader extends Scene
 
         // Move to MainMenu
         this.add.image(512, 384, 'mainMenuBackground');
-        this.scene.start('OvercookedGame');
+        this.scene.start('MainMenu');
     }
 
     shutdown() {
