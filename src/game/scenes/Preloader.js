@@ -59,9 +59,14 @@ export class Preloader extends Scene
 
         this.load.image('guacamole_recipe', 'guacamole_recipe.png');
         this.load.image('chipsAndGuac_recipe', 'chipsandguac_recipe.png');
-        this.load.image('burrito_recipe', 'burrito_recipe.png');
-        this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
+        this.load.image('burrito_recipe', 'buritto_recipe.png');
+        this.load.image('quessadilla_recipe', 'quesadilla_recipe.png');
         this.load.image('taco_recipe', 'tacos_recipe.png');
+        this.load.image('nachos_recipe', 'nachos_recipe.png');
+        this.load.image('sope_recipe', 'sope_recipe.png');
+        this.load.image('mexicanSalad_recipe', 'mexicansalad_recipe.png');
+        this.load.image('cheeseWrap_recipe', 'cheesewrap_recipe.png');
+
 
         this.load.setPath('assets/meals/');
 
@@ -70,6 +75,10 @@ export class Preloader extends Scene
         this.load.image('burrito_complete', 'meal4Burrito.png');
         this.load.image('quessadilla_complete', 'meal2Quessadilla.png');
         this.load.image('taco_complete', 'meal3Tacos.png');
+        this.load.image('nachos_complete', 'meal6Nachos.png');
+        this.load.image('sope_complete', 'meal7Sopes.png');
+        this.load.image('mexicanSalad_complete', 'meal8Mexicansalad.png');
+        this.load.image('cheeseWrap_complete', 'meal9Cheesewraps.png');
 
         this.load.setPath('assets/kitchen_assets/');
 

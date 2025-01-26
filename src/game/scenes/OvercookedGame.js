@@ -29,9 +29,6 @@ export class OvercookedGame extends Scene {
     }
 
     create() {
-        // Add resize handler right at the start
-        this.scale.on('resize', this.handleResize, this);
-        
         // Get initial dimensions
         const width = this.scale.width;
         const height = this.scale.height;
@@ -62,7 +59,14 @@ export class OvercookedGame extends Scene {
         this.characterManager.createCharacters(width, height);
 
         // Initialize ingredients
-        this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x);
+        const ingredientConfigs = [
+            { name: 'Tortilla', x: width - 70, y: 200, scale: .9 },
+            { name: 'Cheese', x: width -70, y: 310, scale: .9 },
+            { name: 'Meat', x: 200, y: 90, scale: 1 },
+            { name: 'Tomato', x: width -70, y: 430, scale: .8 },
+            { name: 'Avocado', x: width -70, y: 560, scale: .9 }
+        ];
+        this.ingredientManager.initializeIngredients(ingredientConfigs);
 
         // Set up collisions after both zones and characters are created
         this.zoneManager.setupCollisions(this.characterManager);
@@ -76,7 +80,11 @@ export class OvercookedGame extends Scene {
         // Start the recipe manager at the end of create
         this.recipeManager.start();
 
+        // Create UI container in the sidebar
+        this.createSidebarUI(width, height);
+
         EventBus.emit('current-scene-ready', this);
+        EventBus.emit('scene-changed', 'OvercookedGame');
     }
 
     setupControls() {
@@ -102,7 +110,7 @@ export class OvercookedGame extends Scene {
             if (isAtCuttingBoard) {
                 if (chef.heldIngredient) {
                     // Drop off ingredient first
-                    this.ingredientManager.handleCuttingBoardDropoff(chef, chef.currentZone);
+                    this.ingredientManager.dropInCuttingBoard(chef, chef.currentZone);
                     // Then start cutting
                     this.cuttingManager.startCuttingTimer(chef);
                 } else if (this.ingredientManager.placedIngredients[chef.currentZone].length > 0) {
@@ -129,7 +137,7 @@ export class OvercookedGame extends Scene {
             if (isAtCuttingBoard) {
                 if (sousChef.heldIngredient) {
                     // Drop off ingredient first
-                    this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
+                    this.ingredientManager.dropInCuttingBoard(sousChef, sousChef.currentZone);
                     // Then start cutting
                     this.cuttingManager.startCuttingTimer(sousChef);
                 } else if (this.ingredientManager.placedIngredients[sousChef.currentZone].length > 0) {
@@ -161,9 +169,18 @@ export class OvercookedGame extends Scene {
         this.gameTimer = this.time.addEvent({
             delay: 1000,
             callback: () => {
+                if (!this.scene || !this.scene.isActive('OvercookedGame')) {
+                    if (this.gameTimer) {
+                        this.gameTimer.remove();
+                    }
+                    return;
+                }
+                
                 timeLeft--;
-                // Emit time update
-                EventBus.emit('time-updated', timeLeft);
+                // Emit time update only if scene is still active
+                if (timeLeft >= 0) {
+                    EventBus.emit('time-updated', timeLeft);
+                }
                 if (timeLeft <= 0) {
                     this.endGame();
                 }
@@ -220,6 +237,11 @@ export class OvercookedGame extends Scene {
         
         // If holding an ingredient
         if (chef.heldIngredient) {
+            // Check if at ready table with completed meal
+            if (chef.currentZone === 'readyTable' && chef.heldIngredient.isCompletedMeal) {
+                this.handleReadyTableDropoff(chef);
+                return;
+            }
             // Check if at trash
             if (chef.currentZone === 'leftTrash' || chef.currentZone === 'rightTrash') {
                 this.ingredientManager.handleTrashDisposal(chef);
@@ -233,14 +255,99 @@ export class OvercookedGame extends Scene {
                 this.ingredientManager.handleCookingStationDropoff(chef);
             }
         } else {
-            // Handle pickup attempts
-            if (chef.currentZone === 'sidebar') {
-                this.handleChefPickupAttempt();
-            } else {
-                // Try to pick up from other zones
+            // Try to pick up from zones
+            if (chef.currentZone) {
                 this.ingredientManager.handleIngredientPickup(chef, chef.currentZone);
             }
         }
+    }
+
+    handleSousChefInteraction() {
+        const sousChef = this.characterManager.getCharacter('sousChef');
+        
+        // If holding an ingredient
+        if (sousChef.heldIngredient) {
+            // Check if at ready table with completed meal
+            if (sousChef.currentZone === 'readyTable' && sousChef.heldIngredient.isCompletedMeal) {
+                this.handleReadyTableDropoff(sousChef);
+                return;
+            }
+            // Check if at trash
+            if (sousChef.currentZone === 'leftTrash' || sousChef.currentZone === 'rightTrash') {
+                this.ingredientManager.handleTrashDisposal(sousChef);
+            }
+            // Check if at either cutting board
+            else if (sousChef.currentZone === 'cuttingBoard' || sousChef.currentZone === 'leftCuttingBoard') {
+                this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
+            } else if (sousChef.currentZone === 'divider') {
+                this.ingredientManager.handleDividerDropoff(sousChef);
+            } else if (sousChef.currentZone === 'cookingStation') {
+                this.ingredientManager.handleCookingStationDropoff(sousChef);
+            }
+        } else {
+            // Try to pick up from zones
+            if (sousChef.currentZone) {
+                this.ingredientManager.handleIngredientPickup(sousChef, sousChef.currentZone);
+            }
+        }
+    }
+
+    handleReadyTableDropoff(character) {
+        if (!character.heldIngredient || !character.heldIngredient.isCompletedMeal) return;
+
+        const readyTable = this.zoneManager.getZone('readyTable');
+        if (!readyTable) return;
+
+        const meal = character.heldIngredient;
+        
+        // Clear the character's held ingredient first
+        character.heldIngredient = null;
+
+        // Position the meal at the ready table
+        meal.gameObject.setPosition(
+            readyTable.x + readyTable.width / 2,
+            readyTable.y + readyTable.height / 2
+        );
+
+        // Add points
+        this.addPoints(meal.points || 50);
+
+        // Create success effect
+        const successText = this.add.text(
+            meal.gameObject.x,
+            meal.gameObject.y,
+            '+50',
+            {
+                fontSize: '32px',
+                fontWeight: 'bold',
+                fill: '#00ff00'
+            }
+        ).setOrigin(0.5);
+
+        // Animate success text - slower and higher
+        this.tweens.add({
+            targets: successText,
+            y: successText.y - 150,
+            alpha: 0,
+            duration: 2000,
+            ease: 'Power1',
+            onComplete: () => successText.destroy()
+        });
+
+        // Fade out and destroy the meal - slower fade
+        this.tweens.add({
+            targets: meal.gameObject,
+            alpha: 0,
+            duration: 1500,  // Increased from 500 to 1500
+            ease: 'Power1',
+            onComplete: () => {
+                meal.gameObject.destroy();
+            }
+        });
+
+        // Play success sound
+        const successSound = this.sound.add('pickupSound');
+        successSound.play({ volume: 0.3 });
     }
 
     handleChefPickupAttempt() {
@@ -315,34 +422,6 @@ export class OvercookedGame extends Scene {
 
         // Award points
         this.addPoints(40); // Default points or use this.cookingResult.points
-    }
-
-    handleSousChefInteraction() {
-        const sousChef = this.characterManager.getCharacter('sousChef');
-        
-        // If holding an ingredient
-        if (sousChef.heldIngredient) {
-            // Check if at trash
-            if (sousChef.currentZone === 'leftTrash' || sousChef.currentZone === 'rightTrash') {
-                this.ingredientManager.handleTrashDisposal(sousChef);
-            }
-            // Check if at either cutting board
-            else if (sousChef.currentZone === 'cuttingBoard' || sousChef.currentZone === 'leftCuttingBoard') {
-                this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
-            } else if (sousChef.currentZone === 'divider') {
-                this.ingredientManager.handleDividerDropoff(sousChef);
-            } else if (sousChef.currentZone === 'cookingStation') {
-                this.ingredientManager.handleCookingStationDropoff(sousChef);
-            }
-        } else {
-            // Handle pickup attempts
-            if (sousChef.currentZone === 'sidebar') {
-                this.handleSousChefPickupAttempt();
-            } else {
-                // Try to pick up from other zones
-                this.ingredientManager.handleIngredientPickup(sousChef, sousChef.currentZone);
-            }
-        }
     }
 
     handleSousChefPickupAttempt() {
@@ -666,34 +745,128 @@ export class OvercookedGame extends Scene {
         this.addPoints(meal.points || 40);
     }
 
-    handleResize(gameSize) {
-        const width = gameSize.width;
-        const height = gameSize.height;
-        
-        // Resize background
-        if (this.background) {
-            this.background.setDisplaySize(width, height);
-            this.background.setPosition(width / 2, height / 2);
-        }
-        
-        // Recalculate game zones
-        const dividerWidth = 250;
-        const dividerX = (width - dividerWidth) / 2;
-        
-        if (this.zoneManager) {
-            this.zoneManager.updateZones(width, height, dividerWidth, dividerX);
-        }
-        
-        // Update camera
-        this.cameras.main.setSize(width, height);
-    }
-
     shutdown() {
-        // Clean up resize listener when scene shuts down
-        this.scale.removeListener('resize', this.handleResize);
-        // ... any other existing shutdown code ...
+        // Remove event listeners first
+        EventBus.off('time-updated', this.updateTimeHandler);
+        EventBus.off('score-updated', this.updateScoreHandler);
+
+        // Clean up UI elements
+        if (this.timeText) {
+            this.timeText.destroy();
+            this.timeText = null;
+        }
+        if (this.scoreText) {
+            this.scoreText.destroy();
+            this.scoreText = null;
+        }
+
+        // Clean up managers
         if (this.cookingManager) {
             this.cookingManager.cleanup();
+        }
+
+        // Clean up scene change
+        EventBus.emit('scene-changed', null);
+    }
+
+    createSidebarUI(width, height) {
+        // Create container for UI elements in sidebar
+        const sidebar = this.add.container(width - 120, 10);
+
+        // Add background for UI elements
+        const uiBackground = this.add.rectangle(0, 0, 110, 160, 0x000000, 0.3)
+            .setOrigin(0, 0);
+        sidebar.add(uiBackground);
+
+        // Add timer
+        const timerLabel = this.add.text(10, 10, 'Time:', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+        
+        this.timeText = this.add.text(65, 10, '120', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+
+        // Add score
+        const scoreLabel = this.add.text(10, 40, 'Score:', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+        
+        this.scoreText = this.add.text(65, 40, '0', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+
+        // Add all elements to sidebar (removed recipe elements)
+        sidebar.add([timerLabel, this.timeText, scoreLabel, this.scoreText]);
+
+        // Store bound event handlers
+        this.updateTimeHandler = this.updateTime.bind(this);
+        this.updateScoreHandler = this.updateScore.bind(this);
+
+        // Set up event listeners with bound handlers
+        EventBus.on('time-updated', this.updateTimeHandler);
+        EventBus.on('score-updated', this.updateScoreHandler);
+    }
+
+    // Separate methods for event handling
+    updateTime(time) {
+        if (this.timeText && this.timeText.active && !this.timeText.destroyed) {
+            try {
+                this.timeText.setText(time.toString());
+            } catch (error) {
+                console.warn('Error updating time text:', error);
+            }
+        }
+    }
+
+    updateScore(score) {
+        if (this.scoreText && this.scoreText.active && !this.scoreText.destroyed) {
+            try {
+                this.scoreText.setText(score.toString());
+            } catch (error) {
+                console.warn('Error updating score text:', error);
+            }
+        }
+    }
+
+    updateRecipe(recipeData) {
+        if (this.recipeDisplay && this.recipeDisplay.active && !this.recipeDisplay.destroyed && this.scene) {
+            try {
+                // Default to placeholder if no recipe data
+                if (!recipeData) {
+                    this.recipeDisplay.setTexture('guacamole_recipe');
+                    return;
+                }
+
+                // Get the image name directly from the recipe data
+                const textureName = recipeData.image;
+                
+                // Log for debugging
+                console.log('Updating recipe display:', {
+                    recipeData,
+                    textureName,
+                    exists: this.textures.exists(textureName)
+                });
+
+                // Only set texture if it exists
+                if (this.textures.exists(textureName)) {
+                    this.recipeDisplay.setTexture(textureName);
+                    this.recipeDisplay.setScale(0.4); // Ensure consistent scale
+                } else {
+                    console.warn(`Recipe texture "${textureName}" not found, using default`);
+                    this.recipeDisplay.setTexture('guacamole_recipe');
+                }
+            } catch (error) {
+                console.warn('Error updating recipe display:', error);
+            }
         }
     }
 }

@@ -1,8 +1,8 @@
 import React from 'react';
+import { MusicToggleButton } from './MusicToggleButton';
 import RecipeDisplay from './RecipeDisplay';
 import ScoreDisplay from './ScoreDisplay';
 import TimerDisplay from './TimerDisplay';
-import { MusicToggleButton } from './MusicToggleButton';
 
 const GameUIBar = ({ score, currentRecipe, timeLeft }) => {
   return (

@@ -1,37 +1,38 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
+import { MusicToggleButton } from './components/MusicToggleButton';
+import RecipeDisplay from './components/RecipeDisplay';
 import { PhaserGame } from './game/PhaserGame';
-import GameUIBar from './components/GameUIBar';
 
 function App() {
-    const phaserRef = useRef();
-    const [gameState, setGameState] = useState({
-        score: 0,
-        timeLeft: 300,
-        currentRecipe: null
-    });
-
-    const updateGameState = (newState) => {
-        setGameState(prevState => ({
-            ...prevState,
-            ...newState
-        }));
-    };
-
     return (
-        <div className="flex h-screen w-screen overflow-hidden bg-black">
-            {/* Fixed width UI Bar */}
-            <div className="w-40 flex-none">
-                <GameUIBar 
-                    score={gameState.score}
-                    timeLeft={gameState.timeLeft}
-                    currentRecipe={gameState.currentRecipe}
-                />
+        <div id="app">
+            <div style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 0,
+                position: 'relative',
+                margin: '0 auto'
+            }}>
+                <PhaserGame />
+                <div style={{
+                    width: '200px',
+                    height: '768px',
+                    flexShrink: 0,
+                    flexGrow: 0,
+                    position: 'relative',
+                    background: 'rgba(0, 0, 0, 0.8)',
+                    borderRadius: '0 10px 10px 0',
+                    padding: '1rem',
+                    borderTop: '1px solid #0ec3c9',
+                    borderRight: '1px solid #0ec3c9',
+                    borderBottom: '1px solid #0ec3c9'
+                }}>
+                    <RecipeDisplay />
+                </div>
             </div>
-            
-            {/* Game Container - exact dimensions */}
-            <div className="flex-none w-[1024px] h-[768px] flex items-center justify-center">
-                <PhaserGame ref={phaserRef} onGameStateUpdate={updateGameState} />
-            </div>
+            <MusicToggleButton className="music-toggle" />
         </div>
     );
 }

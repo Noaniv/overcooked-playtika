@@ -7,7 +7,7 @@ export class RecipeManager {
         this.recipes = [
             {
                 name: 'Taco',
-                ingredients: ['Tortilla', 'Meat', 'Cheese'],
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
                 result: 'taco_complete',
                 image: 'taco_recipe'
             },
@@ -21,13 +21,37 @@ export class RecipeManager {
                 name: 'Chips and Guac',
                 ingredients: ['Tortilla', 'Avocado', 'Tomato'],
                 result: 'chipsandguac_complete',
-                image: 'chipsandguac_recipe'
+                image: 'chipsAndGuac_recipe'
             },
             {
                 name: 'Guacamole',
-                ingredients: ['Tortilla', 'Avocado', 'Tomato'],
+                ingredients: ['Avocado', 'Tomato'],
                 result: 'guacamole_complete',
                 image: 'guacamole_recipe'
+            },
+            {
+                name: 'Nachos',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'nachos_complete',
+                image: 'nachos_recipe'
+            },
+            {
+                name: 'Sope',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'sope_complete',
+                image: 'sope_recipe'
+            },
+            {
+                name: 'Mexican Salad',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'mexicanSalad_complete',
+                image: 'mexicanSalad_recipe'
+            },
+            {
+                name: 'Cheese Wrap',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'cheeseWrap_complete',
+                image: 'cheeseWrap_recipe'
             }
         ];
     }
@@ -36,22 +60,36 @@ export class RecipeManager {
         const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
         this.currentRecipe = this.recipes[recipeIndex];
         
-        // Emit recipe update with both name and image
-        EventBus.emit('recipe-updated', {
+        console.log('Emitting recipe update:', {
             name: this.currentRecipe.name,
-            image: this.currentRecipe.image
+            image: this.currentRecipe.image,
+            ingredients: this.currentRecipe.ingredients
         });
+
+        EventBus.emit('recipe-updated', this.currentRecipe);
     }
 
-    checkRecipeCompletion(ingredients) {
+    checkRecipeCompletion(placedIngredients) {
         if (!this.currentRecipe) return false;
+
+        // Get array of ingredient names
+        const placedNames = placedIngredients.map(ing => ing.name);
         
-        const requiredIngredients = this.currentRecipe.ingredients;
-        const placedIngredients = ingredients.map(ing => ing.name);
-        
-        return requiredIngredients.every(ingredient => 
-            placedIngredients.includes(ingredient)
+        console.log('Recipe check:', {
+            required: this.currentRecipe.ingredients,
+            placed: placedNames,
+            recipeName: this.currentRecipe.name
+        });
+
+        // Check if all required ingredients are present
+        const hasAllRequired = this.currentRecipe.ingredients.every(required => 
+            placedNames.includes(required)
         );
+
+        // Check if there are no extra ingredients
+        const correctCount = placedNames.length === this.currentRecipe.ingredients.length;
+
+        return hasAllRequired && correctCount;
     }
 
     completeRecipe() {
@@ -65,10 +103,7 @@ export class RecipeManager {
     // Initialize with first recipe
     start() {
         this.currentRecipe = this.recipes[0];
-        // Emit initial recipe with both name and image
-        EventBus.emit('recipe-updated', {
-            name: this.currentRecipe.name,
-            image: this.currentRecipe.image
-        });
+        console.log('Starting with recipe:', this.currentRecipe);
+        EventBus.emit('recipe-updated', this.currentRecipe);
     }
 } 
