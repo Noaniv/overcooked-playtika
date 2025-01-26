@@ -177,57 +177,148 @@ export class IngredientManager {
         this.placedIngredients.cookingStation = [];
     }
 
+    createNewIngredient(name, x, y, state = 'raw', scale = 0.3) {
+        return {
+            name: name,
+            gameObject: this.scene.add.image(x, y, `${name.toLowerCase()}1`)
+                .setScale(scale)
+                .setOrigin(0.5),
+            state: state,
+            originalScale: scale,
+            interactiveZone: this.createIngredientZone(x, y, name)
+        };
+    }
+
     findInteractingIngredient(character) {
-        // Debug the interaction check
-        console.log('Checking interaction zones');
+        // First check cutting boards
+        if ((character.currentZone === 'cuttingBoard' || character.currentZone === 'leftCuttingBoard') && 
+            this.placedIngredients[character.currentZone]?.length > 0) {
+            
+            const boardIngredients = this.placedIngredients[character.currentZone];
+            const topIngredient = boardIngredients[boardIngredients.length - 1];
+            
+            const charBounds = character.interactionZone.getBounds();
+            const ingBounds = topIngredient.gameObject.getBounds();
+            
+            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
+                // Properly destroy the original ingredient
+                if (topIngredient.gameObject) {
+                    topIngredient.gameObject.destroy();
+                }
+                if (topIngredient.interactiveZone) {
+                    topIngredient.interactiveZone.destroy();
+                }
+                
+                // Remove from cutting board
+                this.placedIngredients[character.currentZone].pop();
+                
+                // Create new instance using the shared method
+                return this.createNewIngredient(
+                    topIngredient.name,
+                    character.x,
+                    character.y,
+                    topIngredient.state,
+                    topIngredient.state === 'prepped' ? 0.2 : 0.3 // Use smaller scale for prepped ingredients
+                );
+            }
+        }
         
-        // First check cooking station if character is in that zone
+        // Then check divider
+        if (character.currentZone === 'divider' && 
+            this.placedIngredients.divider.length > 0) {
+            
+            const dividerIngredients = this.placedIngredients.divider;
+            const topIngredient = dividerIngredients[dividerIngredients.length - 1];
+            
+            const charBounds = character.interactionZone.getBounds();
+            const ingBounds = topIngredient.gameObject.getBounds();
+            
+            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
+                // Properly destroy the original ingredient and its components
+                if (topIngredient.gameObject) {
+                    topIngredient.gameObject.destroy();
+                }
+                if (topIngredient.interactiveZone) {
+                    topIngredient.interactiveZone.destroy();
+                }
+                if (topIngredient.timer) {
+                    topIngredient.timer.remove();
+                }
+                if (topIngredient.timerContainer) {
+                    topIngredient.timerContainer.destroy();
+                }
+                
+                // Remove from divider and clear slot
+                if (typeof topIngredient.slotIndex === 'number') {
+                    this.dividerSlots[topIngredient.slotIndex].occupied = false;
+                }
+                this.placedIngredients.divider.pop();
+                
+                // Return the ingredient info
+                return {
+                    name: topIngredient.name,
+                    state: topIngredient.state,
+                    x: character.x,
+                    y: character.y,
+                    isFromStation: true
+                };
+            }
+        }
+        
+        // Then check cooking station
         if (character.currentZone === 'cookingStation' && 
             this.placedIngredients.cookingStation.length > 0) {
             
             const cookingStationIngredients = this.placedIngredients.cookingStation;
             const topIngredient = cookingStationIngredients[cookingStationIngredients.length - 1];
             
-            // Check if character's interaction zone overlaps with the ingredient
             const charBounds = character.interactionZone.getBounds();
             const ingBounds = topIngredient.gameObject.getBounds();
             
             if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds) && !topIngredient.isCompletedMeal) {
-                console.log('Found ingredient in cooking station:', topIngredient);
+                // Properly destroy the original ingredient
+                if (topIngredient.gameObject) {
+                    topIngredient.gameObject.destroy();
+                }
+                if (topIngredient.interactiveZone) {
+                    topIngredient.interactiveZone.destroy();
+                }
+                
                 // Remove from cooking station
                 this.placedIngredients.cookingStation.pop();
-                return topIngredient;
+                
+                // Return the ingredient info without creating a new instance
+                return {
+                    name: topIngredient.name,
+                    state: topIngredient.state,
+                    x: character.x,
+                    y: character.y,
+                    isFromStation: true // Add flag to indicate this is from a station
+                };
             }
         }
         
-        // Then check raw ingredients in sidebar
-        const interactingIngredient = this.ingredients.find(ingredient => {
+        // Finally check raw ingredients in sidebar
+        const sidebarIngredient = this.ingredients.find(ingredient => {
             const bounds = ingredient.interactiveZone.getBounds();
             const charBounds = character.interactionZone.getBounds();
-            const isOverlapping = Phaser.Geom.Rectangle.Overlaps(bounds, charBounds);
-            
-            console.log('Checking ingredient:', {
-                name: ingredient.name,
-                ingredientBounds: bounds,
-                characterBounds: charBounds,
-                isOverlapping
-            });
-            
-            return isOverlapping;
+            return Phaser.Geom.Rectangle.Overlaps(bounds, charBounds);
         });
 
-        return interactingIngredient;
+        if (sidebarIngredient) {
+            return {
+                name: sidebarIngredient.name,
+                x: sidebarIngredient.x,
+                y: sidebarIngredient.y,
+                isFromSidebar: true // Add flag to indicate this is from sidebar
+            };
+        }
+
+        return null;
     }
 
     handleIngredientPickup(character) {
         if (character.heldIngredient) return;
-
-        // Debug logs
-        console.log('Attempting pickup:', {
-            character: character === this.scene.characterManager.chef ? 'chef' : 'sousChef',
-            currentZone: character.currentZone,
-            position: { x: character.x, y: character.y }
-        });
 
         // First check if we're at cooking station and there's a completed meal
         if (character.currentZone === 'cookingStation' && 
@@ -235,55 +326,34 @@ export class IngredientManager {
             this.placedIngredients.cookingStation[0].isCompletedMeal) {
             
             const completedMeal = this.placedIngredients.cookingStation[0];
-            console.log('Picking up completed meal:', completedMeal);
-            
             character.heldIngredient = completedMeal;
             this.placedIngredients.cookingStation = [];
             
-            // Play pickup sound
             const pickupSound = this.scene.sound.add('pickupSound');
             pickupSound.play({ volume: 0.3 });
             return;
         }
 
-        // Then check for raw ingredients
-        const rawIngredient = this.findInteractingIngredient(character);
-        if (rawIngredient) {
-            console.log('Found raw ingredient:', {
-                name: rawIngredient.name,
-                position: { x: rawIngredient.x, y: rawIngredient.y }
-            });
-
-            // Stop pulsing the raw ingredient
-            if (rawIngredient.isPulsing) {
-                this.removePulseEffect(rawIngredient);
-                rawIngredient.isPulsing = false;
-                rawIngredient.pulsingCharacter = null;
+        // Then check for ingredients
+        const foundIngredient = this.findInteractingIngredient(character);
+        if (foundIngredient) {
+            // Stop pulsing if applicable
+            if (foundIngredient.isPulsing) {
+                this.removePulseEffect(foundIngredient);
+                foundIngredient.isPulsing = false;
+                foundIngredient.pulsingCharacter = null;
             }
 
-            // Create new instance of ingredient with texture1
-            const newIngredient = {
-                name: rawIngredient.name,
-                gameObject: this.scene.add.image(
-                    rawIngredient.x,
-                    rawIngredient.y,
-                    `${rawIngredient.name.toLowerCase()}1`
-                )
-                    .setScale(0.3)
-                    .setOrigin(0.5),
-                state: 'raw',
-                originalScale: 0.2,
-                interactiveZone: this.createIngredientZone(rawIngredient.x, rawIngredient.y, rawIngredient.name)
-            };
+            // Create new instance using the shared method
+            character.heldIngredient = this.createNewIngredient(
+                foundIngredient.name,
+                foundIngredient.x,
+                foundIngredient.y,
+                foundIngredient.state || 'raw'
+            );
 
-            character.heldIngredient = newIngredient;
-            console.log('Picked up ingredient:', newIngredient);
-
-            // Play pickup sound
             const pickupSound = this.scene.sound.add('pickupSound');
             pickupSound.play({ volume: 0.3 });
-        } else {
-            console.log('Failed to pick up ingredient');
         }
     }
 
