@@ -62,13 +62,12 @@ export class OvercookedGame extends Scene {
         this.characterManager.createCharacters(width, height);
 
         // Initialize ingredients
-        const sidebarX = this.zoneManager.getZone('sidebar').x;
         const ingredientConfigs = [
-            { name: 'Tortilla', x: sidebarX, y: 200, scale: .9 },
-            { name: 'Cheese', x: sidebarX, y: 310, scale: .9 },
+            { name: 'Tortilla', x: width - 70, y: 200, scale: .9 },
+            { name: 'Cheese', x: width -70, y: 310, scale: .9 },
             { name: 'Meat', x: 200, y: 90, scale: 1 },
-            { name: 'Tomato', x: sidebarX, y: 430, scale: .8 },
-            { name: 'Avocado', x: sidebarX, y: 560, scale: .9 }
+            { name: 'Tomato', x: width -70, y: 430, scale: .8 },
+            { name: 'Avocado', x: width -70, y: 560, scale: .9 }
         ];
         this.ingredientManager.initializeIngredients(ingredientConfigs);
 
@@ -83,6 +82,9 @@ export class OvercookedGame extends Scene {
 
         // Start the recipe manager at the end of create
         this.recipeManager.start();
+
+        // Create UI container in the sidebar
+        this.createSidebarUI(width, height);
 
         EventBus.emit('current-scene-ready', this);
     }
@@ -169,9 +171,18 @@ export class OvercookedGame extends Scene {
         this.gameTimer = this.time.addEvent({
             delay: 1000,
             callback: () => {
+                if (!this.scene || !this.scene.isActive('OvercookedGame')) {
+                    if (this.gameTimer) {
+                        this.gameTimer.remove();
+                    }
+                    return;
+                }
+                
                 timeLeft--;
-                // Emit time update
-                EventBus.emit('time-updated', timeLeft);
+                // Emit time update only if scene is still active
+                if (timeLeft >= 0) {
+                    EventBus.emit('time-updated', timeLeft);
+                }
                 if (timeLeft <= 0) {
                     this.endGame();
                 }
@@ -691,11 +702,147 @@ export class OvercookedGame extends Scene {
     }
 
     shutdown() {
-        // Clean up resize listener when scene shuts down
+        // Remove event listeners first
+        EventBus.off('time-updated', this.updateTimeHandler);
+        EventBus.off('score-updated', this.updateScoreHandler);
+        EventBus.off('recipe-updated', this.updateRecipeHandler);
+
+        // Clean up UI elements
+        if (this.timeText) {
+            this.timeText.destroy();
+            this.timeText = null;
+        }
+        if (this.scoreText) {
+            this.scoreText.destroy();
+            this.scoreText = null;
+        }
+        if (this.recipeDisplay) {
+            this.recipeDisplay.destroy();
+            this.recipeDisplay = null;
+        }
+
+        // Clean up resize listener
         this.scale.removeListener('resize', this.handleResize);
-        // ... any other existing shutdown code ...
+        
+        // Clean up managers
         if (this.cookingManager) {
             this.cookingManager.cleanup();
+        }
+    }
+
+    createSidebarUI(width, height) {
+        // Create container for UI elements in sidebar
+        const sidebar = this.add.container(width - 120, 10);
+
+        // Add background for UI elements
+        const uiBackground = this.add.rectangle(0, 0, 110, 160, 0x000000, 0.3)
+            .setOrigin(0, 0);
+        sidebar.add(uiBackground);
+
+        // Add timer
+        const timerLabel = this.add.text(10, 10, 'Time:', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+        
+        this.timeText = this.add.text(65, 10, '120', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+
+        // Add score
+        const scoreLabel = this.add.text(10, 40, 'Score:', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+        
+        this.scoreText = this.add.text(65, 40, '0', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+
+        // Add recipe section
+        const recipeLabel = this.add.text(10, 70, 'Recipe:', {
+            fontSize: '16px',
+            fontFamily: 'Arial',
+            color: '#ffffff'
+        }).setOrigin(0);
+
+        // Recipe display will be added by RecipeManager
+        this.recipeDisplay = this.add.image(-55, 770, 'guacamole_recipe')
+            .setScale(0.3)
+            .setOrigin(0.5);
+        this.recipeManager.cycleToNextRecipe();
+
+        // Add all elements to sidebar
+        sidebar.add([timerLabel, this.timeText, scoreLabel, this.scoreText, recipeLabel, this.recipeDisplay]);
+
+        // Store bound event handlers
+        this.updateTimeHandler = this.updateTime.bind(this);
+        this.updateScoreHandler = this.updateScore.bind(this);
+        this.updateRecipeHandler = this.updateRecipe.bind(this);
+
+        // Set up event listeners with bound handlers
+        EventBus.on('time-updated', this.updateTimeHandler);
+        EventBus.on('score-updated', this.updateScoreHandler);
+        EventBus.on('recipe-updated', this.updateRecipeHandler);
+    }
+
+    // Separate methods for event handling
+    updateTime(time) {
+        if (this.timeText && this.timeText.active && !this.timeText.destroyed) {
+            try {
+                this.timeText.setText(time.toString());
+            } catch (error) {
+                console.warn('Error updating time text:', error);
+            }
+        }
+    }
+
+    updateScore(score) {
+        if (this.scoreText && this.scoreText.active && !this.scoreText.destroyed) {
+            try {
+                this.scoreText.setText(score.toString());
+            } catch (error) {
+                console.warn('Error updating score text:', error);
+            }
+        }
+    }
+
+    updateRecipe(recipeData) {
+        if (this.recipeDisplay && this.recipeDisplay.active && !this.recipeDisplay.destroyed && this.scene) {
+            try {
+                // Default to placeholder if no recipe data
+                if (!recipeData) {
+                    this.recipeDisplay.setTexture('guacamole_recipe');
+                    return;
+                }
+
+                // Get the image name directly from the recipe data
+                const textureName = recipeData.image;
+                
+                // Log for debugging
+                console.log('Updating recipe display:', {
+                    recipeData,
+                    textureName,
+                    exists: this.textures.exists(textureName)
+                });
+
+                // Only set texture if it exists
+                if (this.textures.exists(textureName)) {
+                    this.recipeDisplay.setTexture(textureName);
+                    this.recipeDisplay.setScale(0.4); // Ensure consistent scale
+                } else {
+                    console.warn(`Recipe texture "${textureName}" not found, using default`);
+                    this.recipeDisplay.setTexture('guacamole_recipe');
+                }
+            } catch (error) {
+                console.warn('Error updating recipe display:', error);
+            }
         }
     }
 }

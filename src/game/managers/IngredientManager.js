@@ -102,7 +102,12 @@ export class IngredientManager {
     }
 
     createIngredientZone(x, y, name) {
-        const zone = this.scene.add.zone(x, y, 125, 85)
+        // Check if the ingredient is meat and adjust size
+        const isMeat = name.toLowerCase().includes('meat');
+        const width = isMeat ? 130 : 125; // Increase width for meat
+        const height = isMeat ? 200 : 85; // Increase height for meat
+
+        const zone = this.scene.add.zone(x, y, width, height)
             .setOrigin(0.5)
             .setName(name);
 
@@ -196,7 +201,7 @@ export class IngredientManager {
                     rawIngredient.y,
                     `${rawIngredient.name.toLowerCase()}1`
                 )
-                    .setScale(0.2)  // Set consistent scale for held ingredients
+                    .setScale(0.3)  // Set consistent scale for held ingredients
                     .setOrigin(0.5),
                 state: 'raw',
                 originalScale: 0.2,  // Store the scale for reference
@@ -212,6 +217,11 @@ export class IngredientManager {
 
             const ingredient = zoneIngredients[zoneIngredients.length - 1];
             
+            // Check for overlap before picking up
+            const charBounds = character.interactionZone.getBounds();
+            const ingBounds = ingredient.gameObject.getBounds();
+            if (!Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) return;
+
             // Stop pulsing the ingredient being picked up
             if (ingredient.isPulsing) {
                 this.removePulseEffect(ingredient);
@@ -220,8 +230,8 @@ export class IngredientManager {
             }
 
             // Ensure consistent scale when picking up from zones
-            ingredient.gameObject.setScale(0.2);
-            ingredient.originalScale = 0.2;
+            ingredient.gameObject.setScale(0.3);
+            ingredient.originalScale = 0.3;
             
             if (character.currentZone === 'divider') {
                 if (ingredient.timer) {
@@ -317,6 +327,19 @@ export class IngredientManager {
         const timer = this.scene.time.addEvent({
             delay: 10000,
             callback: () => {
+                // Apply penalty points
+                this.scene.addPoints(-10);
+                
+                // Play trash disposal sound
+                const trashSound = this.scene.sound.add('trashDisposalSound');
+                trashSound.play({ volume: 0.3 });
+
+                // Create trash effect at ingredient position
+                this.scene.createTrashEffect(
+                    droppedIngredient.gameObject.x,
+                    droppedIngredient.gameObject.y
+                );
+
                 // Destroy the ingredient when timer runs out
                 droppedIngredient.gameObject.destroy();
                 if (droppedIngredient.interactiveZone) {
@@ -371,7 +394,14 @@ export class IngredientManager {
         const dropPos = this.scene.zoneManager.getDropPosition('cookingStation', character);
         if (!dropPos) return;
 
-        character.heldIngredient.gameObject.setPosition(dropPos.x, dropPos.y);
+        // Set position and adjust scale for visibility
+        character.heldIngredient.gameObject
+            .setPosition(dropPos.x, dropPos.y)
+            .setScale(0.3); // Slightly larger scale for better visibility
+
+        // Store original scale with the ingredient
+        character.heldIngredient.originalScale = 0.3;
+        
         this.placedIngredients.cookingStation.push(character.heldIngredient);
         character.heldIngredient = null;
 

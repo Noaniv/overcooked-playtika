@@ -22,6 +22,36 @@ export class CookingManager {
         this.cookingTimer = this.scene.time.delayedCall(3000, () => {
             this.stopCooking();
         });
+
+        // Get current ingredients at cooking station
+        const ingredients = this.scene.ingredientManager.placedIngredients.cookingStation;
+        
+        // Log current cooking state
+        console.log('Starting cooking with ingredients:', ingredients);
+
+        // Check if we have the right ingredients for the current recipe
+        const isRecipeComplete = this.scene.recipeManager.checkRecipeCompletion(ingredients);
+        
+        console.log('Recipe completion check:', isRecipeComplete);
+
+        if (isRecipeComplete) {
+            // Get the current recipe
+            const currentRecipe = this.scene.recipeManager.currentRecipe;
+            console.log('Completing recipe:', currentRecipe.name);
+
+            // Create the completed meal
+            this.scene.cookingResult = this.scene.add.image(
+                this.scene.zoneManager.getZone('cookingStation').x + 100,
+                this.scene.zoneManager.getZone('cookingStation').y + 100,
+                currentRecipe.result
+            ).setScale(0.3);
+
+            // Clear ingredients
+            this.scene.ingredientManager.clearCookingStation();
+
+            // Complete the recipe
+            this.scene.recipeManager.completeRecipe();
+        }
     }
 
     stopCooking() {
