@@ -7,7 +7,7 @@ export class RecipeManager {
         this.recipes = [
             {
                 name: 'Taco',
-                ingredients: ['Tortilla', 'Meat', 'Cheese'],
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
                 result: 'taco_complete',
                 image: 'taco_recipe'
             },

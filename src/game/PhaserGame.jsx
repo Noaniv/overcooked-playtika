@@ -11,17 +11,27 @@ const PhaserGame = forwardRef((props, ref) => {
         if (localRef.current && !gameRef.current) {
             const config = {
                 type: Phaser.AUTO,
-                width: 1024,
+                width: 1260,
                 height: 768,
                 scale: {
-                    mode: Phaser.Scale.NONE, // Don't auto-scale
-                    autoCenter: Phaser.Scale.NO_CENTER // Don't auto-center
+                    mode: Phaser.Scale.NONE,
+                    autoCenter: Phaser.Scale.CENTER_BOTH,
+                    parent: localRef.current,
+                    width: 1260,
+                    height: 768
                 },
-                // ... rest of config
+                physics: {
+                    default: 'arcade',
+                    arcade: {
+                        gravity: { y: 0 },
+                        debug: false
+                    }
+                },
+                backgroundColor: '#000000'
             };
+            
             gameRef.current = new Game(localRef.current, config);
             
-            // Expose the game instance to the parent component through ref
             if (ref) {
                 ref.current = {
                     scene: gameRef.current.scene,
@@ -29,7 +39,6 @@ const PhaserGame = forwardRef((props, ref) => {
                 };
             }
 
-            // Make game instance globally available
             window.game = gameRef.current;
         }
 
@@ -54,7 +63,17 @@ const PhaserGame = forwardRef((props, ref) => {
         };
     }, [props.currentActiveScene]);
 
-    return <div id="game-container" ref={localRef} />;
+    return (
+        <div ref={localRef} style={{
+            width: '1260px',
+            height: '768px',
+            flexShrink: 0,
+            flexGrow: 0,
+            position: 'relative'
+        }}>
+            {/* Game will be mounted here */}
+        </div>
+    );
 });
 
 PhaserGame.displayName = 'PhaserGame'; // Add display name for dev tools

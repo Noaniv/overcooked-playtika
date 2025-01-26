@@ -30,12 +30,6 @@ const RecipeDisplay = () => {
                     } else {
                         console.warn('No texture found for:', recipe.image);
                     }
-                } else {
-                    console.warn('Missing required elements:', {
-                        hasRecipe: !!recipe,
-                        hasCanvas: !!canvasRef.current,
-                        hasGame: !!window.game
-                    });
                 }
             });
         };
@@ -54,32 +48,54 @@ const RecipeDisplay = () => {
         return null;
     }
 
-    console.log('Rendering recipe:', currentRecipe);
+    const renderIngredientIcons = () => {
+        return (
+            <div className="flex flex-wrap gap-4 justify-center mt-4">
+                {currentRecipe.ingredients.map((ingredient, index) => {
+                    const iconKey = `${ingredient.toLowerCase()}1`;
+                    return (
+                        <div key={index} className="ingredient-icon-container bg-gradient-to-r from-orange-800 to-red-800 border-2 border-yellow-400 hover:border-yellow-300 transition-all duration-300">
+                            <canvas
+                                width={50}
+                                height={50}
+                                className="ingredient-icon"
+                                ref={canvas => {
+                                    if (canvas && window.game) {
+                                        const ctx = canvas.getContext('2d');
+                                        const texture = window.game.textures.get(iconKey);
+                                        if (texture) {
+                                            const frame = texture.getSourceImage();
+                                            ctx.clearRect(0, 0, 50, 50);
+                                            ctx.drawImage(frame, 0, 0, 50, 50);
+                                        }
+                                    }
+                                }}
+                            />
+                            <span className="text-yellow-300 text-xs mt-1 font-bold">{ingredient}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
 
     return (
-        <div className="recipe-display">
-            <h3 className="text-white mb-2">{currentRecipe.name}</h3>
-            <canvas
-                ref={canvasRef}
-                width={200}
-                height={200}
-                className="recipe-image"
-                style={{ border: '1px solid white' }}
-            />
-            <div className="text-white mt-2">
-                <p>Ingredients:</p>
-                <ul>
-                    {currentRecipe.ingredients.map((ingredient, index) => (
-                        <li key={index}>{ingredient}</li>
-                    ))}
-                </ul>
-            </div>
-            <div className="text-xs text-gray-400 mt-2">
-                {/* <p>Recipe: {currentRecipe.name}</p>
-                <p>Image key: {currentRecipe.image}</p> */}
+        <div className="recipe-display-container bg-gradient-to-b from-orange-950 to-red-950">
+            <div className="recipe-display p-4">
+                <h3 className="text-yellow-300 text-lg font-bold mb-2 bg-gradient-to-r from-orange-800 to-red-800 p-2 rounded-lg text-center shadow-lg">{currentRecipe.name}</h3>
+                <canvas
+                    ref={canvasRef}
+                    width={200}
+                    height={150}
+                    className="recipe-image rounded-lg border-2 border-yellow-400 shadow-lg"
+                />
+                <div className="text-yellow-300 mt-4">
+                    <p className="font-bold text-center bg-gradient-to-r from-orange-800 to-red-800 p-2 rounded-lg shadow-md">Ingredients:</p>
+                    {renderIngredientIcons()}
+                </div>
             </div>
         </div>
     );
 };
 
-export default RecipeDisplay; 
+export default RecipeDisplay;
