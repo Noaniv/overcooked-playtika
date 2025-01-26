@@ -59,8 +59,8 @@ export class Preloader extends Scene
 
         this.load.image('guacamole_recipe', 'guacamole_recipe.png');
         this.load.image('chipsAndGuac_recipe', 'chipsandguac_recipe.png');
-        this.load.image('burrito_recipe', 'burrito_recipe.png');
-        this.load.image('quessadilla_recipe', 'quessadilla_recipe.png');
+        this.load.image('burrito_recipe', 'buritto_recipe.png');
+        this.load.image('quessadilla_recipe', 'quesadilla_recipe.png');
         this.load.image('taco_recipe', 'tacos_recipe.png');
         this.load.image('nachos_recipe', 'nachos_recipe.png');
         this.load.image('sope_recipe', 'sope_recipe.png');

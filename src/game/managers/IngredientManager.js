@@ -167,25 +167,93 @@ export class IngredientManager {
 
     clearCookingStation() {
         this.placedIngredients.cookingStation.forEach(ingredient => {
-            ingredient.gameObject.destroy();
+            if (ingredient.gameObject) {
+                ingredient.gameObject.destroy();
+            }
+            if (ingredient.interactiveZone) {
+                ingredient.interactiveZone.destroy();
+            }
         });
         this.placedIngredients.cookingStation = [];
     }
 
     findInteractingIngredient(character) {
-        return this.ingredients.find(ingredient => {
+        // Debug the interaction check
+        console.log('Checking interaction zones');
+        
+        // First check cooking station if character is in that zone
+        if (character.currentZone === 'cookingStation' && 
+            this.placedIngredients.cookingStation.length > 0) {
+            
+            const cookingStationIngredients = this.placedIngredients.cookingStation;
+            const topIngredient = cookingStationIngredients[cookingStationIngredients.length - 1];
+            
+            // Check if character's interaction zone overlaps with the ingredient
+            const charBounds = character.interactionZone.getBounds();
+            const ingBounds = topIngredient.gameObject.getBounds();
+            
+            if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds) && !topIngredient.isCompletedMeal) {
+                console.log('Found ingredient in cooking station:', topIngredient);
+                // Remove from cooking station
+                this.placedIngredients.cookingStation.pop();
+                return topIngredient;
+            }
+        }
+        
+        // Then check raw ingredients in sidebar
+        const interactingIngredient = this.ingredients.find(ingredient => {
             const bounds = ingredient.interactiveZone.getBounds();
             const charBounds = character.interactionZone.getBounds();
-            return Phaser.Geom.Rectangle.Overlaps(bounds, charBounds);
+            const isOverlapping = Phaser.Geom.Rectangle.Overlaps(bounds, charBounds);
+            
+            console.log('Checking ingredient:', {
+                name: ingredient.name,
+                ingredientBounds: bounds,
+                characterBounds: charBounds,
+                isOverlapping
+            });
+            
+            return isOverlapping;
         });
+
+        return interactingIngredient;
     }
 
     handleIngredientPickup(character) {
         if (character.heldIngredient) return;
 
-        // First check if we're overlapping with any raw ingredient
+        // Debug logs
+        console.log('Attempting pickup:', {
+            character: character === this.scene.characterManager.chef ? 'chef' : 'sousChef',
+            currentZone: character.currentZone,
+            position: { x: character.x, y: character.y }
+        });
+
+        // First check if we're at cooking station and there's a completed meal
+        if (character.currentZone === 'cookingStation' && 
+            this.placedIngredients.cookingStation.length > 0 && 
+            this.placedIngredients.cookingStation[0].isCompletedMeal) {
+            
+            const completedMeal = this.placedIngredients.cookingStation[0];
+            console.log('Picking up completed meal:', completedMeal);
+            
+            character.heldIngredient = completedMeal;
+            this.placedIngredients.cookingStation = [];
+            
+            // Play pickup sound
+            const pickupSound = this.scene.sound.add('pickupSound');
+            pickupSound.play({ volume: 0.3 });
+            return;
+        }
+
+        // Then check for raw ingredients
         const rawIngredient = this.findInteractingIngredient(character);
         if (rawIngredient) {
+            console.log('Found raw ingredient:', {
+                name: rawIngredient.name,
+                position: { x: rawIngredient.x, y: rawIngredient.y }
+            });
+
             // Stop pulsing the raw ingredient
             if (rawIngredient.isPulsing) {
                 this.removePulseEffect(rawIngredient);
@@ -201,62 +269,21 @@ export class IngredientManager {
                     rawIngredient.y,
                     `${rawIngredient.name.toLowerCase()}1`
                 )
-                    .setScale(0.3)  // Set consistent scale for held ingredients
+                    .setScale(0.3)
                     .setOrigin(0.5),
                 state: 'raw',
-                originalScale: 0.2,  // Store the scale for reference
+                originalScale: 0.2,
                 interactiveZone: this.createIngredientZone(rawIngredient.x, rawIngredient.y, rawIngredient.name)
             };
 
             character.heldIngredient = newIngredient;
-        }
-        // If not overlapping with a raw ingredient, check placed ingredients
-        else if (character.currentZone) {
-            const zoneIngredients = this.placedIngredients[character.currentZone];
-            if (!zoneIngredients || zoneIngredients.length === 0) return;
+            console.log('Picked up ingredient:', newIngredient);
 
-            const ingredient = zoneIngredients[zoneIngredients.length - 1];
-            
-            // Check for overlap before picking up
-            const charBounds = character.interactionZone.getBounds();
-            const ingBounds = ingredient.gameObject.getBounds();
-            if (!Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) return;
-
-            // Stop pulsing the ingredient being picked up
-            if (ingredient.isPulsing) {
-                this.removePulseEffect(ingredient);
-                ingredient.isPulsing = false;
-                ingredient.pulsingCharacter = null;
-            }
-
-            // Ensure consistent scale when picking up from zones
-            ingredient.gameObject.setScale(0.3);
-            ingredient.originalScale = 0.3;
-            
-            if (character.currentZone === 'divider') {
-                if (ingredient.timer) {
-                    ingredient.timer.remove();
-                    ingredient.timer = null;
-                }
-                if (ingredient.timerContainer) {
-                    ingredient.timerContainer.destroy();
-                    ingredient.timerContainer = null;
-                }
-                
-                if (typeof ingredient.slotIndex === 'number') {
-                    this.dividerSlots[ingredient.slotIndex].occupied = false;
-                    ingredient.slotIndex = undefined;
-                }
-            }
-
-            zoneIngredients.pop();
-            character.heldIngredient = ingredient;
-        }
-
-        // Play pickup sound if we picked up something
-        if (character.heldIngredient) {
+            // Play pickup sound
             const pickupSound = this.scene.sound.add('pickupSound');
             pickupSound.play({ volume: 0.3 });
+        } else {
+            console.log('Failed to pick up ingredient');
         }
     }
 
@@ -275,6 +302,9 @@ export class IngredientManager {
             case 'cuttingBoard':
             case 'leftCuttingBoard':
                 this.dropInCuttingBoard(character, zoneName);
+                break;
+            case 'readyTable':
+                this.handleReadyTableDropoff(character);
                 break;
             default:
                 return;
@@ -391,13 +421,15 @@ export class IngredientManager {
         const cookingStation = this.scene.zoneManager.getZone('cookingStation');
         if (!cookingStation) return;
 
-        const dropPos = this.scene.zoneManager.getDropPosition('cookingStation', character);
-        if (!dropPos) return;
+        const dropPos = {
+            x: cookingStation.x + cookingStation.width / 2,
+            y: cookingStation.y + cookingStation.height / 2
+        };
 
         // Set position and adjust scale for visibility
         character.heldIngredient.gameObject
             .setPosition(dropPos.x, dropPos.y)
-            .setScale(0.3); // Slightly larger scale for better visibility
+            .setScale(0.3);
 
         // Store original scale with the ingredient
         character.heldIngredient.originalScale = 0.3;
@@ -405,8 +437,32 @@ export class IngredientManager {
         this.placedIngredients.cookingStation.push(character.heldIngredient);
         character.heldIngredient = null;
 
-        if (this.scene.cookingManager) {
-            this.scene.cookingManager.startCooking();
+        // Check recipe completion after adding new ingredient
+        const currentIngredients = this.placedIngredients.cookingStation.map(ing => ing.name);
+        console.log('Checking recipe with ingredients:', currentIngredients);
+
+        if (this.scene.recipeManager.checkRecipeCompletion(this.placedIngredients.cookingStation)) {
+            console.log('Recipe complete!');
+            // Create the completed meal
+            const recipe = this.scene.recipeManager.currentRecipe;
+            const completedMeal = {
+                name: recipe.name,
+                gameObject: this.scene.add.image(dropPos.x, dropPos.y, recipe.result)
+                    .setScale(0.4),
+                isCompletedMeal: true,
+                points: 50
+            };
+
+            // Clear cooking station ingredients
+            this.clearCookingStation();
+
+            // Place completed meal
+            this.placedIngredients.cookingStation.push(completedMeal);
+
+            // Move to next recipe
+            this.scene.recipeManager.completeRecipe();
+        } else {
+            console.log('Recipe not complete yet');
         }
     }
 
@@ -547,5 +603,77 @@ export class IngredientManager {
             overlappingIngredient.pulsingCharacter = character;
             this.addPulseEffect(overlappingIngredient);
         }
+    }
+
+    handleReadyTableDropoff(character) {
+        if (!character.heldIngredient || !character.heldIngredient.isCompletedMeal) {
+            return; // Only allow completed meals to be dropped at ready table
+        }
+
+        const readyTable = this.scene.zoneManager.getZone('readyTable');
+        if (!readyTable) return;
+
+        const meal = character.heldIngredient;
+        
+        // Clear the character's held ingredient
+        character.heldIngredient = null;
+
+        // Position the meal at the ready table
+        meal.gameObject.setPosition(
+            readyTable.x + readyTable.width / 2,
+            readyTable.y + readyTable.height / 2
+        );
+
+        // Add points
+        this.scene.addPoints(meal.points || 50);
+
+        // Create success effect
+        this.createSuccessEffect(meal.gameObject.x, meal.gameObject.y);
+
+        // Fade out and destroy the meal
+        this.scene.tweens.add({
+            targets: meal.gameObject,
+            alpha: 0,
+            duration: 500,
+            onComplete: () => {
+                meal.gameObject.destroy();
+            }
+        });
+    }
+
+    createSuccessEffect(x, y) {
+        // Create a success text effect
+        const successText = this.scene.add.text(x, y, '+50', {
+            fontSize: '32px',
+            fontWeight: 'bold',
+            fill: '#00ff00'
+        }).setOrigin(0.5);
+
+        // Animate the text
+        this.scene.tweens.add({
+            targets: successText,
+            y: y - 100,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power1',
+            onComplete: () => successText.destroy()
+        });
+
+        // Add a flash effect
+        const flash = this.scene.add.rectangle(x, y, 100, 100, 0x00ff00)
+            .setAlpha(0.5)
+            .setOrigin(0.5);
+
+        this.scene.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 2,
+            duration: 300,
+            onComplete: () => flash.destroy()
+        });
+
+        // Play success sound
+        const successSound = this.scene.sound.add('pickupSound');
+        successSound.play({ volume: 0.3 });
     }
 }

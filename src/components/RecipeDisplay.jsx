@@ -1,55 +1,85 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { EventBus } from '../game/EventBus';
 
-const RecipeDisplay = ({ currentRecipe }) => {
-  useEffect(() => {
-    if (currentRecipe && window.game) {
-      const texture = window.game.textures.get(currentRecipe.image);
-      if (texture) {
-        const canvas = document.getElementById('recipe-canvas');
-        if (canvas) {
-          const ctx = canvas.getContext('2d');
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const frame = texture.getSourceImage();
-          ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
-        }
-      }
+const RecipeDisplay = () => {
+    const [currentRecipe, setCurrentRecipe] = useState(null);
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+        const handleRecipeUpdate = (recipe) => {
+            console.log('Recipe update received in RecipeDisplay:', recipe);
+            setCurrentRecipe(recipe);
+            
+            requestAnimationFrame(() => {
+                if (recipe && canvasRef.current && window.game) {
+                    const canvas = canvasRef.current;
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    const texture = window.game.textures.get(recipe.image);
+                    console.log('Texture found:', texture, 'for key:', recipe.image);
+                    
+                    if (texture) {
+                        const frame = texture.getSourceImage();
+                        console.log('Frame:', frame);
+                        try {
+                            ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
+                        } catch (error) {
+                            console.error('Error drawing image:', error);
+                        }
+                    } else {
+                        console.warn('No texture found for:', recipe.image);
+                    }
+                } else {
+                    console.warn('Missing required elements:', {
+                        hasRecipe: !!recipe,
+                        hasCanvas: !!canvasRef.current,
+                        hasGame: !!window.game
+                    });
+                }
+            });
+        };
+
+        console.log('Setting up recipe update listener');
+        EventBus.on('recipe-updated', handleRecipeUpdate);
+
+        return () => {
+            console.log('Cleaning up recipe update listener');
+            EventBus.off('recipe-updated', handleRecipeUpdate);
+        };
+    }, []);
+
+    if (!currentRecipe) {
+        console.log('No current recipe');
+        return null;
     }
-  }, [currentRecipe]);
 
-  return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      gap: '5px'
-    }}>
-      <span style={{ fontWeight: 'bold' }}>Recipe</span>
-      <div style={{ 
-        width: '100px',  // Increased size
-        height: '100px', // Increased size
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        borderRadius: '5px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        overflow: 'hidden'
-      }}>
-        {currentRecipe ? (
-          <canvas 
-            id="recipe-canvas"
-            width="100"  // Increased size
-            height="100" // Increased size
-            style={{
-              width: '100%',
-              height: '100%'
-            }}
-          />
-        ) : (
-          <span>Loading...</span>
-        )}
-      </div>
-    </div>
-  );
+    console.log('Rendering recipe:', currentRecipe);
+
+    return (
+        <div className="recipe-display">
+            <h3 className="text-white mb-2">{currentRecipe.name}</h3>
+            <canvas
+                ref={canvasRef}
+                width={200}
+                height={200}
+                className="recipe-image"
+                style={{ border: '1px solid white' }}
+            />
+            <div className="text-white mt-2">
+                <p>Ingredients:</p>
+                <ul>
+                    {currentRecipe.ingredients.map((ingredient, index) => (
+                        <li key={index}>{ingredient}</li>
+                    ))}
+                </ul>
+            </div>
+            <div className="text-xs text-gray-400 mt-2">
+                {/* <p>Recipe: {currentRecipe.name}</p>
+                <p>Image key: {currentRecipe.image}</p> */}
+            </div>
+        </div>
+    );
 };
 
 export default RecipeDisplay; 

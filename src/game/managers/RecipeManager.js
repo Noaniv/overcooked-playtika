@@ -60,52 +60,36 @@ export class RecipeManager {
         const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
         this.currentRecipe = this.recipes[recipeIndex];
         
-        // Log for debugging
-        console.log('Cycling to recipe:', {
+        console.log('Emitting recipe update:', {
             name: this.currentRecipe.name,
             image: this.currentRecipe.image,
             ingredients: this.currentRecipe.ingredients
         });
 
-        // Emit recipe update with image property
-        EventBus.emit('recipe-updated', {
-            name: this.currentRecipe.name,
-            image: this.currentRecipe.image
-        });
+        EventBus.emit('recipe-updated', this.currentRecipe);
     }
 
-    checkRecipeCompletion(ingredients) {
+    checkRecipeCompletion(placedIngredients) {
         if (!this.currentRecipe) return false;
+
+        // Get array of ingredient names
+        const placedNames = placedIngredients.map(ing => ing.name);
         
-        // Log for debugging
-        console.log('Checking recipe completion:', {
+        console.log('Recipe check:', {
             required: this.currentRecipe.ingredients,
-            placed: ingredients.map(ing => ing.name),
-            recipe: this.currentRecipe.name
+            placed: placedNames,
+            recipeName: this.currentRecipe.name
         });
 
-        const requiredIngredients = this.currentRecipe.ingredients;
-        const placedIngredients = ingredients.map(ing => ing.name);
-        
         // Check if all required ingredients are present
-        const hasAllIngredients = requiredIngredients.every(ingredient => {
-            const hasIngredient = placedIngredients.includes(ingredient);
-            // Log each ingredient check
-            console.log(`Checking ${ingredient}: ${hasIngredient}`);
-            return hasIngredient;
-        });
+        const hasAllRequired = this.currentRecipe.ingredients.every(required => 
+            placedNames.includes(required)
+        );
 
         // Check if there are no extra ingredients
-        const correctCount = placedIngredients.length === requiredIngredients.length;
+        const correctCount = placedNames.length === this.currentRecipe.ingredients.length;
 
-        // Log final result
-        console.log('Recipe completion result:', {
-            hasAllIngredients,
-            correctCount,
-            isComplete: hasAllIngredients && correctCount
-        });
-
-        return hasAllIngredients && correctCount;
+        return hasAllRequired && correctCount;
     }
 
     completeRecipe() {
@@ -119,18 +103,7 @@ export class RecipeManager {
     // Initialize with first recipe
     start() {
         this.currentRecipe = this.recipes[0];
-        
-        // Log for debugging
-        console.log('Starting with recipe:', {
-            name: this.currentRecipe.name,
-            image: this.currentRecipe.image,
-            ingredients: this.currentRecipe.ingredients
-        });
-
-        // Emit initial recipe
-        EventBus.emit('recipe-updated', {
-            name: this.currentRecipe.name,
-            image: this.currentRecipe.image
-        });
+        console.log('Starting with recipe:', this.currentRecipe);
+        EventBus.emit('recipe-updated', this.currentRecipe);
     }
 } 

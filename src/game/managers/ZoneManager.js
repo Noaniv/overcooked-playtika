@@ -14,11 +14,11 @@ export class ZoneManager {
             sidebar: { x: width - 125, y: 0, width: 200, height: height },
             divider: { x: dividerX + 4, y: height/2 - 100, width: dividerWidth - 50, height: 310},
             cookingStation: { x: 380, y: 0, width: 190, height: 200 },
-            cuttingBoard: { x: dividerX + 180, y: 0, width: 450, height: 200 },
+            cuttingBoard: { x: dividerX + 180, y: 0, width: 280, height: 200 },
             leftCuttingBoard: { x: 0, y: height/2 - 240, width: 100, height: 300 },
             leftTrash: { x: 0, y: height/2 + 120, width: 100, height: 100 },
             rightTrash: { x: width - 210, y: height - 85, width: 90, height: 80 },
-            readyTable: { x: 0, y: height -150, width: 350, height: 180 }
+            readyTable: { x: 0, y: height -170, width: 350, height: 200 }
         };
 
         // Create collision zones
@@ -114,42 +114,6 @@ export class ZoneManager {
 
     getZone(zoneName) {
         return this.overlapZones[zoneName];
-    }
-
-    updateZones(width, height, dividerWidth, dividerX) {
-        // Update zone definitions
-        this.overlapZones = {
-            sidebar: { x: width - 125, y: 0, width: 200, height: height },
-            divider: { x: dividerX + 4, y: height/2 - 100, width: dividerWidth - 50, height: 310},
-            cookingStation: { x: 380, y: 0, width: 190, height: 200 },
-            cuttingBoard: { x: dividerX + 180, y: 0, width: 450, height: 200 },
-            leftCuttingBoard: { x: 0, y: height/2 - 240, width: 100, height: 300 },
-            leftTrash: { x: 0, y: height/2 + 120, width: 100, height: 100 },
-            rightTrash: { x: width - 210, y: height - 85, width: 90, height: 80 },
-            readyTable: { x: 0, y: height -150, width: 350, height: 180 }
-        };
-
-        // Update zone visuals and physics bodies
-        Object.entries(this.overlapZones).forEach(([zoneName, zone]) => {
-            const zoneSprite = this.overlapZoneSprites[zoneName];
-            if (zoneSprite) {
-                // Update visual position and size
-                zoneSprite.setPosition(
-                    zone.x + zone.width / 2,
-                    zone.y + zone.height / 2
-                );
-                zoneSprite.setSize(zone.width, zone.height);
-
-                // Update physics body
-                if (zoneSprite.body) {
-                    zoneSprite.body.reset(
-                        zone.x + zone.width / 2,
-                        zone.y + zone.height / 2
-                    );
-                    zoneSprite.body.setSize(zone.width, zone.height);
-                }
-            }
-        });
     }
 
     isNearZone(player, zoneName, radius = 60) {

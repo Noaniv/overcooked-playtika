@@ -47,7 +47,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
             this.y,
             this.INTERACTION_RADIUS,
             0x0000ff,
-            0.2 // Slightly visible for debugging
+            0.2 // Make it more visible for debugging
         ).setDepth(-1);
 
         // Add physics to interaction zone
@@ -56,7 +56,13 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
         
         // Make interaction zone follow the character
         this.interactionZone.setData('followTarget', this);
-        this.interactionZone.setData('offsetY', -20); // Adjust as needed
+        this.interactionZone.setData('offsetY', -20);
+
+        // Debug log
+        console.log('Created interaction zone:', {
+            radius: this.INTERACTION_RADIUS,
+            position: { x: this.x, y: this.y }
+        });
     }
 
     handleMovement() {

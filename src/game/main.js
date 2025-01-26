@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import { Game as PhaserGame } from 'phaser';
 import { Boot } from './scenes/Boot';
 import { CountdownScene } from './scenes/CountdownScene';
 import { GameOver } from './scenes/GameOver';
@@ -10,9 +10,13 @@ const config = {
     type: Phaser.AUTO,
     width: 1024,
     height: 768,
-    parent: 'game-container',
+    parent: 'game',
     physics: {
-        default: 'arcade'
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
     },
     backgroundColor: '#028af8',
     scene: [
@@ -25,8 +29,15 @@ const config = {
     ]
 };
 
-const StartGame = (parent) => {
-    return new Phaser.Game({ ...config, parent });
-};
+export class Game extends PhaserGame {
+    constructor() {
+        super(config);
+    }
+}
 
-export default StartGame;
+export default function StartGame(containerId) {
+    if (document.getElementById(containerId)) {
+        return new Game();
+    }
+    return null;
+}
