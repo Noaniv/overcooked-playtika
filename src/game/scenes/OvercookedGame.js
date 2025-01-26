@@ -62,7 +62,15 @@ export class OvercookedGame extends Scene {
         this.characterManager.createCharacters(width, height);
 
         // Initialize ingredients
-        this.ingredientManager.createIngredients(this.zoneManager.getZone('sidebar').x);
+        const sidebarX = this.zoneManager.getZone('sidebar').x;
+        const ingredientConfigs = [
+            { name: 'Tortilla', x: sidebarX, y: 200, scale: .9 },
+            { name: 'Cheese', x: sidebarX, y: 310, scale: .9 },
+            { name: 'Meat', x: 200, y: 90, scale: 1 },
+            { name: 'Tomato', x: sidebarX, y: 430, scale: .8 },
+            { name: 'Avocado', x: sidebarX, y: 560, scale: .9 }
+        ];
+        this.ingredientManager.initializeIngredients(ingredientConfigs);
 
         // Set up collisions after both zones and characters are created
         this.zoneManager.setupCollisions(this.characterManager);
@@ -102,7 +110,7 @@ export class OvercookedGame extends Scene {
             if (isAtCuttingBoard) {
                 if (chef.heldIngredient) {
                     // Drop off ingredient first
-                    this.ingredientManager.handleCuttingBoardDropoff(chef, chef.currentZone);
+                    this.ingredientManager.dropInCuttingBoard(chef, chef.currentZone);
                     // Then start cutting
                     this.cuttingManager.startCuttingTimer(chef);
                 } else if (this.ingredientManager.placedIngredients[chef.currentZone].length > 0) {
@@ -129,7 +137,7 @@ export class OvercookedGame extends Scene {
             if (isAtCuttingBoard) {
                 if (sousChef.heldIngredient) {
                     // Drop off ingredient first
-                    this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
+                    this.ingredientManager.dropInCuttingBoard(sousChef, sousChef.currentZone);
                     // Then start cutting
                     this.cuttingManager.startCuttingTimer(sousChef);
                 } else if (this.ingredientManager.placedIngredients[sousChef.currentZone].length > 0) {
@@ -233,12 +241,34 @@ export class OvercookedGame extends Scene {
                 this.ingredientManager.handleCookingStationDropoff(chef);
             }
         } else {
-            // Handle pickup attempts
-            if (chef.currentZone === 'sidebar') {
-                this.handleChefPickupAttempt();
-            } else {
-                // Try to pick up from other zones
+            // Try to pick up from zones
+            if (chef.currentZone) {
                 this.ingredientManager.handleIngredientPickup(chef, chef.currentZone);
+            }
+        }
+    }
+
+    handleSousChefInteraction() {
+        const sousChef = this.characterManager.getCharacter('sousChef');
+        
+        // If holding an ingredient
+        if (sousChef.heldIngredient) {
+            // Check if at trash
+            if (sousChef.currentZone === 'leftTrash' || sousChef.currentZone === 'rightTrash') {
+                this.ingredientManager.handleTrashDisposal(sousChef);
+            }
+            // Check if at either cutting board
+            else if (sousChef.currentZone === 'cuttingBoard' || sousChef.currentZone === 'leftCuttingBoard') {
+                this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
+            } else if (sousChef.currentZone === 'divider') {
+                this.ingredientManager.handleDividerDropoff(sousChef);
+            } else if (sousChef.currentZone === 'cookingStation') {
+                this.ingredientManager.handleCookingStationDropoff(sousChef);
+            }
+        } else {
+            // Try to pick up from zones
+            if (sousChef.currentZone) {
+                this.ingredientManager.handleIngredientPickup(sousChef, sousChef.currentZone);
             }
         }
     }
@@ -315,34 +345,6 @@ export class OvercookedGame extends Scene {
 
         // Award points
         this.addPoints(40); // Default points or use this.cookingResult.points
-    }
-
-    handleSousChefInteraction() {
-        const sousChef = this.characterManager.getCharacter('sousChef');
-        
-        // If holding an ingredient
-        if (sousChef.heldIngredient) {
-            // Check if at trash
-            if (sousChef.currentZone === 'leftTrash' || sousChef.currentZone === 'rightTrash') {
-                this.ingredientManager.handleTrashDisposal(sousChef);
-            }
-            // Check if at either cutting board
-            else if (sousChef.currentZone === 'cuttingBoard' || sousChef.currentZone === 'leftCuttingBoard') {
-                this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
-            } else if (sousChef.currentZone === 'divider') {
-                this.ingredientManager.handleDividerDropoff(sousChef);
-            } else if (sousChef.currentZone === 'cookingStation') {
-                this.ingredientManager.handleCookingStationDropoff(sousChef);
-            }
-        } else {
-            // Handle pickup attempts
-            if (sousChef.currentZone === 'sidebar') {
-                this.handleSousChefPickupAttempt();
-            } else {
-                // Try to pick up from other zones
-                this.ingredientManager.handleIngredientPickup(sousChef, sousChef.currentZone);
-            }
-        }
     }
 
     handleSousChefPickupAttempt() {

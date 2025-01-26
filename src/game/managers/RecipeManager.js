@@ -28,6 +28,30 @@ export class RecipeManager {
                 ingredients: ['Tortilla', 'Avocado', 'Tomato'],
                 result: 'guacamole_complete',
                 image: 'guacamole_recipe'
+            },
+            {
+                name: 'Nachos',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'nachos_complete',
+                image: 'nachos_recipe'
+            },
+            {
+                name: 'Sope',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'sope_complete',
+                image: 'sope_recipe'
+            },
+            {
+                name: 'Mexican Salad',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'mexicanSalad_complete',
+                image: 'mexicanSalad_recipe'
+            },
+            {
+                name: 'Cheese Wrap',
+                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                result: 'cheeseWrap_complete',
+                image: 'cheeseWrap_recipe'
             }
         ];
     }

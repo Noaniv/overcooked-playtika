@@ -101,9 +101,27 @@ export class CharacterManager {
     }
 
     handleZoneOverlap(character, zoneName) {
+        // Clear previous zone if different
+        if (character.currentZone !== zoneName) {
+            // Stop any existing pulse effects when changing zones
+            if (character.currentZone) {
+                // Clear any existing pulses for this character
+                this.scene.ingredientManager.ingredients.forEach(ingredient => {
+                    if (ingredient.isPulsing && ingredient.pulsingCharacter === character) {
+                        this.scene.ingredientManager.removePulseEffect(ingredient);
+                        ingredient.isPulsing = false;
+                        ingredient.pulsingCharacter = null;
+                    }
+                });
+            }
+            character.currentZone = zoneName;
+        }
+
         const characterType = character === this.chef ? 'chef' : 'sousChef';
-        character.currentZone = zoneName;
         this.activeZoneOverlaps.get(characterType).add(zoneName);
+
+        // Add pulse effect to pickupable ingredients
+        this.scene.ingredientManager.addPulseEffectToPickupable(character);
     }
 
     handleIngredientOverlap(character, ingredientName) {
@@ -138,5 +156,20 @@ export class CharacterManager {
     isNearIngredient(character, ingredientName) {
         const characterType = character === this.chef ? 'chef' : 'sousChef';
         return this.activeIngredientOverlaps.get(characterType).has(ingredientName);
+    }
+
+    clearZoneOverlap(character, zoneName) {
+        character.currentZone = null;
+        const characterType = character === this.chef ? 'chef' : 'sousChef';
+        this.activeZoneOverlaps.get(characterType).delete(zoneName);
+        
+        // Clear any pulses for this character
+        this.scene.ingredientManager.ingredients.forEach(ingredient => {
+            if (ingredient.isPulsing && ingredient.pulsingCharacter === character) {
+                this.scene.ingredientManager.removePulseEffect(ingredient);
+                ingredient.isPulsing = false;
+                ingredient.pulsingCharacter = null;
+            }
+        });
     }
 } 
