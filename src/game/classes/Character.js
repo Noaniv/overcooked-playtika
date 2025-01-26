@@ -7,7 +7,7 @@ export class Character extends Phaser.Physics.Arcade.Sprite {
         this.MOVEMENT_SPEED = 500; // Define speed as a class property
         
         // Calculate scaled size maintaining aspect ratio (21:31)
-        const scale = 2.5; // Adjust this value to change overall size
+        const scale = 3; // Adjust this value to change overall size
         const originalWidth = 21;
         const originalHeight = 31;
         const scaledWidth = originalWidth * scale;

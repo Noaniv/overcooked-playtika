@@ -228,7 +228,7 @@ export class Preloader extends Scene
         // Initialize game music with proper context
         this.game.music = this.sound.add('backgroundMusic', {
             loop: true,
-            volume: 0,
+            volume: 0.2,
             delay: 0
         });
 
@@ -269,7 +269,7 @@ export class Preloader extends Scene
 
         // Move to MainMenu
         this.add.image(512, 384, 'mainMenuBackground');
-        this.scene.start('OvercookedGame');
+        this.scene.start('MainMenu');
     }
 
     shutdown() {
