@@ -63,7 +63,7 @@ export class IngredientManager {
                 0x00ff00,
                 0
             ).setOrigin(0.5)
-            .setStrokeStyle(2, 0x00ff00),
+            .setStrokeStyle(0, 0x00ff00),
             debugText: this.scene.add.text(x, y, name, {
                 fontSize: '16px',
                 color: '#000000',

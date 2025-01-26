@@ -13,8 +13,8 @@ export class ZoneManager {
         this.overlapZones = {
             sidebar: { x: width - 75, y: 0, width: 100, height: height },
             divider: { x: dividerX + 4, y: height/2 - 100, width: dividerWidth - 50, height: 310},
-            cookingStation: { x: 380, y: 0, width: 190, height: 220 },
-            cuttingBoard: { x: dividerX + 180, y: 0, width: 450, height: 220 },
+            cookingStation: { x: 380, y: 0, width: 190, height: 200 },
+            cuttingBoard: { x: dividerX + 180, y: 0, width: 450, height: 200 },
             leftCuttingBoard: { x: 0, y: height/2 - 240, width: 100, height: 300 },
             leftTrash: { x: 0, y: height/2 + 120, width: 100, height: 100 },
             rightTrash: { x: width - 210, y: height - 85, width: 90, height: 80 },
@@ -38,7 +38,7 @@ export class ZoneManager {
                 zone.width,
                 zone.height,
                 0x00ff00,
-                0.2
+                0
             ).setOrigin(0.5);
 
             // Add physics but don't enable collision
@@ -74,7 +74,7 @@ export class ZoneManager {
                 area.width,
                 area.height,
                 0xff0000,
-                0.5
+                0
             );
             
             // Add physics with collision enabled
