@@ -224,7 +224,7 @@ export class OvercookedGame extends Scene {
         if (character.heldIngredient) {
             // Check if at ready table with completed meal
             if (character.currentZone === 'readyTable' && character.heldIngredient.isCompletedMeal) {
-                this.handleReadyTableDropoff(character);
+                this.ingredientManager.handleReadyTableDropoff(character);
                 return;
             }
             // Check if at trash
@@ -245,39 +245,6 @@ export class OvercookedGame extends Scene {
                 this.ingredientManager.handleIngredientPickup(character, character.currentZone);
             }
         }
-    }
-
-    handleReadyTableDropoff(character) {
-        if (!character.heldIngredient || !character.heldIngredient.isCompletedMeal) return;
-
-        const readyTable = this.zoneManager.getZone('readyTable');
-        if (!readyTable) return;
-
-        const meal = character.heldIngredient;
-        
-        // Clear the character's held ingredient first
-        character.heldIngredient = null;
-
-        // Position the meal at the ready table
-        meal.gameObject.setPosition(
-            readyTable.x + readyTable.width / 2,
-            readyTable.y + readyTable.height / 2
-        );
-
-        // Add points and create effect
-        this.addPoints(meal.points || 50);
-        this.ingredientManager.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, meal.points || 50);
-
-        // Fade out and destroy the meal
-        this.tweens.add({
-            targets: meal.gameObject,
-            alpha: 0,
-            duration: 1500,
-            ease: 'Power1',
-            onComplete: () => {
-                meal.gameObject.destroy();
-            }
-        });
     }
 
     addPoints(points) {

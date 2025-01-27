@@ -229,6 +229,9 @@ export class IngredientManager {
             if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
                 // If it's a completed meal
                 if (topIngredient.isCompletedMeal) {
+                    // Remove from cooking station first
+                    this.placedIngredients.cookingStation.pop();
+                    
                     return {
                         name: topIngredient.name,
                         state: 'completed',
@@ -236,7 +239,8 @@ export class IngredientManager {
                         y: character.y,
                         isCompletedMeal: true,
                         points: topIngredient.points,
-                        result: topIngredient.result
+                        result: topIngredient.result,
+                        gameObject: topIngredient.gameObject // Keep the game object
                     };
                 }
                 
@@ -371,7 +375,37 @@ export class IngredientManager {
             this.placedIngredients.cookingStation[0].isCompletedMeal) {
             
             const completedMeal = this.placedIngredients.cookingStation[0];
-            character.heldIngredient = completedMeal;
+            
+            // Clean up the timer if it exists
+            if (completedMeal.timer) {
+                completedMeal.timer.remove();
+            }
+            if (completedMeal.updateTimer) {
+                completedMeal.updateTimer.remove();
+            }
+            if (completedMeal.timerContainer) {
+                completedMeal.timerContainer.destroy();
+            }
+
+            // Create a new game object with the completed meal texture
+            const gameObject = this.scene.add.image(
+                character.x,
+                character.y - 20,
+                completedMeal.result
+            ).setScale(0.2);
+
+            // Create a new held ingredient with the completed meal properties
+            character.heldIngredient = {
+                name: completedMeal.name,
+                gameObject: gameObject,
+                isCompletedMeal: true,
+                points: completedMeal.points,
+                result: completedMeal.result,
+                state: 'completed'
+            };
+            
+            // Destroy the old game object and clear the cooking station
+            completedMeal.gameObject.destroy();
             this.placedIngredients.cookingStation = [];
             
             const pickupSound = this.scene.sound.add('pickupSound');
@@ -389,13 +423,18 @@ export class IngredientManager {
                 foundIngredient.pulsingCharacter = null;
             }
 
-            // Create new instance using the shared method
-            character.heldIngredient = this.createIngredientInstance(
-                foundIngredient.name,
-                foundIngredient.x,
-                foundIngredient.y,
-                foundIngredient.state || 'raw'
-            );
+            // If it's a completed meal, keep the existing game object
+            if (foundIngredient.isCompletedMeal && foundIngredient.gameObject) {
+                character.heldIngredient = foundIngredient;
+            } else {
+                // Create new instance for regular ingredients
+                character.heldIngredient = this.createIngredientInstance(
+                    foundIngredient.name,
+                    foundIngredient.x,
+                    foundIngredient.y,
+                    foundIngredient.state || 'raw'
+                );
+            }
 
             const pickupSound = this.scene.sound.add('pickupSound');
             pickupSound.play({ volume: 0.3 });
@@ -557,6 +596,74 @@ export class IngredientManager {
         character.heldIngredient = null;
     }
 
+    startCompletedMealTimer(completedMeal) {
+        // Create timer container above the meal
+        const timerContainer = this.scene.add.container(
+            completedMeal.gameObject.x,
+            completedMeal.gameObject.y - 40
+        );
+
+        // Add timer background
+        const timerBg = this.scene.add.rectangle(0, 0, 30, 20, 0x000000, 0.5)
+            .setOrigin(0.5);
+        timerContainer.add(timerBg);
+
+        // Add timer text
+        const timerText = this.scene.add.text(0, 0, '5', {
+            fontSize: '16px',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+        timerContainer.add(timerText);
+
+        // Create timer
+        const timer = this.scene.time.addEvent({
+            delay: 5000,
+            callback: () => {
+                // Apply penalty points
+                this.scene.addPoints(-40);
+                
+                // Play trash disposal sound
+                const trashSound = this.scene.sound.add('trashDisposalSound');
+                trashSound.play({ volume: 0.3 });
+
+                // Use scene's penalty effect
+                this.scene.createPenaltyEffect(
+                    completedMeal.gameObject.x, 
+                    completedMeal.gameObject.y, 
+                    40
+                );
+
+                // Destroy the meal and timer
+                completedMeal.gameObject.destroy();
+                timerContainer.destroy();
+                
+                // Clear cooking station
+                this.placedIngredients.cookingStation = [];
+            }
+        });
+
+        // Update timer text every second
+        const updateTimer = this.scene.time.addEvent({
+            delay: 1000,
+            repeat: 4,
+            callback: () => {
+                if (!timerContainer.active) {
+                    updateTimer.remove();
+                    return;
+                }
+                const remaining = Math.ceil((5000 - timer.getElapsed()) / 1000);
+                if (remaining >= 0) {
+                    timerText.setText(remaining.toString());
+                }
+            }
+        });
+
+        // Store timer references with the meal
+        completedMeal.timer = timer;
+        completedMeal.updateTimer = updateTimer;
+        completedMeal.timerContainer = timerContainer;
+    }
+
     dropInCuttingBoard(character, zoneName) {
         const cuttingBoard = this.scene.zoneManager.getZone(zoneName);
         if (!cuttingBoard) return;
@@ -619,7 +726,7 @@ export class IngredientManager {
         );
 
         // Create success effect and add points
-        this.scene.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, points);
+        this.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, points);
         this.scene.addPoints(points);
 
         // Fade out and destroy
@@ -793,12 +900,14 @@ export class IngredientManager {
     }
 
     createPenaltyEffect(x, y, points) {
+        // Simple text effect
         const penaltyText = this.scene.add.text(x, y, `-${points}`, {
             fontSize: '24px',
             fontWeight: 'bold',
             fill: '#FF4D4D'
         }).setOrigin(0.5);
 
+        // Subtle fade-up animation
         this.scene.tweens.add({
             targets: penaltyText,
             y: y - 50,
