@@ -90,8 +90,8 @@ export class CuttingManager {
             this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone] = [];
 
             // Create penalty effect and deduct points
-            this.scene.ingredientManager.createPenaltyEffect(x, y, 5);
-            this.scene.addPoints(-5);
+            this.scene.ingredientManager.createPenaltyEffect(x, y, 10);
+            this.scene.addPoints(-10);
         }
         
         // Ensure held ingredient is cleared
@@ -147,9 +147,23 @@ export class CuttingManager {
         const cuttingBoard = this.scene.zoneManager.getZone(zoneName);
         if (!cuttingBoard) return;
         
-        // Drop off ingredient first
-        this.scene.ingredientManager.dropInCuttingBoard(character, zoneName);
-        // Then start cutting
+        // Position the ingredient on the cutting board
+        character.heldIngredient.gameObject.setPosition(
+            cuttingBoard.x + cuttingBoard.width / 2 + 40,
+            cuttingBoard.y + cuttingBoard.height / 2 + 40
+        );
+
+        // Add to placed ingredients
+        this.scene.ingredientManager.placedIngredients[zoneName].push(character.heldIngredient);
+        
+        // Play drop sound
+        const dropSound = this.scene.sound.add('pickupSound');
+        dropSound.play({ volume: 0.3 });
+        
+        // Clear held ingredient before starting cutting
+        character.heldIngredient = null;
+
+        // Start cutting immediately
         this.startCuttingTimer(character);
     }
 

@@ -203,10 +203,10 @@ export class IngredientManager {
     }
 
     // Rename createNewIngredient to createIngredientInstance
-    createIngredientInstance(name, x, y, state = 'raw', scale = 0.3) {
+    createIngredientInstance(name, x, y, state = 'raw', scale = 0.2, textureType = 0) {
         return {
             name: name,
-            gameObject: this.scene.add.image(x, y, `${name.toLowerCase()}1`)
+            gameObject: this.scene.add.image(x, y, `${name.toLowerCase()}${textureType}`)
                 .setScale(scale)
                 .setOrigin(0.5),
             state: state,
@@ -229,6 +229,9 @@ export class IngredientManager {
             if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
                 // If it's a completed meal
                 if (topIngredient.isCompletedMeal) {
+                    // Remove from cooking station first
+                    this.placedIngredients.cookingStation.pop();
+                    
                     return {
                         name: topIngredient.name,
                         state: 'completed',
@@ -236,7 +239,8 @@ export class IngredientManager {
                         y: character.y,
                         isCompletedMeal: true,
                         points: topIngredient.points,
-                        result: topIngredient.result
+                        result: topIngredient.result,
+                        gameObject: topIngredient.gameObject // Keep the game object
                     };
                 }
                 
@@ -272,11 +276,6 @@ export class IngredientManager {
             const ingBounds = topIngredient.gameObject.getBounds();
             
             if (Phaser.Geom.Rectangle.Overlaps(charBounds, ingBounds)) {
-                // Only allow pickup if ingredient is prepped
-                if (topIngredient.state !== 'prepped') {
-                    console.log('Cannot pick up unprepped ingredient from cutting board');
-                    return null;
-                }
 
                 // Properly destroy the original ingredient
                 if (topIngredient.gameObject) {
@@ -365,64 +364,132 @@ export class IngredientManager {
     handleIngredientPickup(character) {
         if (character.heldIngredient) return;
 
-        // First check if we're at cooking station and there's a completed meal
-        if (character.currentZone === 'cookingStation' && 
-            this.placedIngredients.cookingStation.length > 0 && 
-            this.placedIngredients.cookingStation[0].isCompletedMeal) {
-            
-            const completedMeal = this.placedIngredients.cookingStation[0];
-            character.heldIngredient = completedMeal;
-            this.placedIngredients.cookingStation = [];
-            
-            const pickupSound = this.scene.sound.add('pickupSound');
-            pickupSound.play({ volume: 0.3 });
+        // Check for completed meal pickup first
+        if (this.canPickupCompletedMeal(character)) {
+            this.pickupCompletedMeal(character);
             return;
         }
 
-        // Then check for ingredients
+        // Then check for other ingredients
         const foundIngredient = this.findInteractingIngredient(character);
         if (foundIngredient) {
-            // Stop pulsing if applicable
-            if (foundIngredient.isPulsing) {
-                this.removePulseEffect(foundIngredient);
-                foundIngredient.isPulsing = false;
-                foundIngredient.pulsingCharacter = null;
+            if (foundIngredient.isFromStation) {
+                this.pickupStationIngredient(character, foundIngredient);
+            } else {
+                this.pickupBasketIngredient(character, foundIngredient);
             }
-
-            // Create new instance using the shared method
-            character.heldIngredient = this.createIngredientInstance(
-                foundIngredient.name,
-                foundIngredient.x,
-                foundIngredient.y,
-                foundIngredient.state || 'raw'
-            );
-
-            const pickupSound = this.scene.sound.add('pickupSound');
-            pickupSound.play({ volume: 0.3 });
         }
+    }
+
+    canPickupCompletedMeal(character) {
+        return character.currentZone === 'cookingStation' && 
+               this.placedIngredients.cookingStation.length > 0 && 
+               this.placedIngredients.cookingStation[0].isCompletedMeal;
+    }
+
+    pickupCompletedMeal(character) {
+        const completedMeal = this.placedIngredients.cookingStation[0];
+        
+        // Clean up timers
+        if (completedMeal.timer) completedMeal.timer.remove();
+        if (completedMeal.updateTimer) completedMeal.updateTimer.remove();
+        if (completedMeal.timerContainer) completedMeal.timerContainer.destroy();
+
+        // Create new game object with completed meal texture
+        const gameObject = this.scene.add.image(
+            character.x,
+            character.y - 20,
+            completedMeal.result
+        ).setScale(0.2);
+
+        // Set up held ingredient
+        character.heldIngredient = {
+            name: completedMeal.name,
+            gameObject: gameObject,
+            isCompletedMeal: true,
+            points: completedMeal.points,
+            result: completedMeal.result,
+            state: 'completed'
+        };
+        
+        // Cleanup
+        completedMeal.gameObject.destroy();
+        this.placedIngredients.cookingStation = [];
+        
+        this.playPickupSound();
+    }
+
+    pickupBasketIngredient(character, ingredient) {
+        // Stop pulsing if applicable
+        if (ingredient.isPulsing) {
+            this.removePulseEffect(ingredient);
+            ingredient.isPulsing = false;
+            ingredient.pulsingCharacter = null;
+        }
+
+        // Create new instance with type 1 texture (raw state)
+        character.heldIngredient = this.createIngredientInstance(
+            ingredient.name,
+            character.x,
+            character.y - 20,
+            'raw',
+            0.2,
+            1  // Use type 1 texture
+        );
+
+        this.playPickupSound();
+    }
+
+    pickupStationIngredient(character, ingredient) {
+        // Determine texture type based on state
+        let textureType = 0;
+        if (ingredient.state === 'raw') {
+            textureType = 1;
+        } else if (ingredient.state === 'prepped') {
+            textureType = 2;
+        }
+
+        // Create new instance with correct texture type
+        character.heldIngredient = this.createIngredientInstance(
+            ingredient.name,
+            character.x,
+            character.y - 20,
+            ingredient.state || 'raw',
+            0.3,
+            textureType  // Use the determined texture type
+        );
+
+        this.playPickupSound();
+    }
+
+    playPickupSound() {
+        const pickupSound = this.scene.sound.add('pickupSound');
+        pickupSound.play({ volume: 0.3 });
     }
 
     handleIngredientDropOff(character, zoneName) {
         if (!character.heldIngredient) return;
         
-        const heldIngredient = character.heldIngredient;
-        
         switch (zoneName) {
-            case 'divider':
-                this.handleDividerDropoff(character);
+            case 'readyTable':
+                if (character.heldIngredient.isCompletedMeal) {
+                    this.handleReadyTableDropoff(character);
+                }
+                break;
+            case 'leftTrash':
+            case 'rightTrash':
+                this.handleTrashDisposal(character);
+                break;
+            case 'cuttingBoard':
+            case 'leftCuttingBoard':
+                this.scene.cuttingManager.handleCuttingBoardDropoff(character, zoneName);
                 break;
             case 'cookingStation':
                 this.handleCookingStationDropoff(character);
                 break;
-            case 'cuttingBoard':
-            case 'leftCuttingBoard':
-                this.dropInCuttingBoard(character, zoneName);
+            case 'divider':
+                this.handleDividerDropoff(character);
                 break;
-            case 'readyTable':
-                this.handleReadyTableDropoff(character);
-                break;
-            default:
-                return;
         }
     }
 
@@ -557,26 +624,72 @@ export class IngredientManager {
         character.heldIngredient = null;
     }
 
-    dropInCuttingBoard(character, zoneName) {
-        const cuttingBoard = this.scene.zoneManager.getZone(zoneName);
-        if (!cuttingBoard) return;
-        
-        character.heldIngredient.gameObject.setPosition(
-            cuttingBoard.x + cuttingBoard.width / 2,
-            cuttingBoard.y + cuttingBoard.height / 2
+    startCompletedMealTimer(completedMeal) {
+        // Create timer container above the meal
+        const timerContainer = this.scene.add.container(
+            completedMeal.gameObject.x,
+            completedMeal.gameObject.y - 40
         );
 
-        this.placedIngredients[zoneName].push(character.heldIngredient);
-        
-        // Play drop sound
-        const dropSound = this.scene.sound.add('pickupSound');
-        dropSound.play({ volume: 0.3 });
-        
-        if (!this.scene.cuttingManager.isCutting) {
-            this.scene.cuttingManager.startCuttingTimer(character);
-        }
-        
-        character.heldIngredient = null;
+        // Add timer background
+        const timerBg = this.scene.add.rectangle(0, 0, 30, 20, 0x000000, 0.5)
+            .setOrigin(0.5);
+        timerContainer.add(timerBg);
+
+        // Add timer text
+        const timerText = this.scene.add.text(0, 0, '5', {
+            fontSize: '16px',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+        timerContainer.add(timerText);
+
+        // Create timer
+        const timer = this.scene.time.addEvent({
+            delay: 5000,
+            callback: () => {
+                // Apply penalty points
+                this.scene.addPoints(-40);
+                
+                // Play trash disposal sound
+                const trashSound = this.scene.sound.add('trashDisposalSound');
+                trashSound.play({ volume: 0.3 });
+
+                // Create penalty effect
+                this.createPenaltyEffect(
+                    completedMeal.gameObject.x, 
+                    completedMeal.gameObject.y, 
+                    40
+                );
+
+                // Destroy the meal and timer
+                completedMeal.gameObject.destroy();
+                timerContainer.destroy();
+                
+                // Clear cooking station
+                this.placedIngredients.cookingStation = [];
+            }
+        });
+
+        // Update timer text every second
+        const updateTimer = this.scene.time.addEvent({
+            delay: 1000,
+            repeat: 4,
+            callback: () => {
+                if (!timerContainer.active) {
+                    updateTimer.remove();
+                    return;
+                }
+                const remaining = Math.ceil((5000 - timer.getElapsed()) / 1000);
+                if (remaining >= 0) {
+                    timerText.setText(remaining.toString());
+                }
+            }
+        });
+
+        // Store timer references with the meal
+        completedMeal.timer = timer;
+        completedMeal.updateTimer = updateTimer;
+        completedMeal.timerContainer = timerContainer;
     }
 
     handleTrashDisposal(character) {
@@ -619,7 +732,7 @@ export class IngredientManager {
         );
 
         // Create success effect and add points
-        this.scene.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, points);
+        this.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, points);
         this.scene.addPoints(points);
 
         // Fade out and destroy
@@ -631,22 +744,6 @@ export class IngredientManager {
         });
 
         character.heldIngredient = null;
-    }
-
-    handleCuttingComplete(character) {
-        if (!character.heldIngredient) return;
-        
-        const ingredientName = character.heldIngredient.name.toLowerCase();
-        character.heldIngredient.gameObject
-            .setTexture(`${ingredientName}2`)
-            .setScale(0.2);
-        character.heldIngredient.state = 'prepped';
-        
-        const cutSound = this.scene.sound.add('drawKnifeSound');
-        cutSound.play({ volume: 0.5 });
-        
-        this.placedIngredients.cuttingBoard = [];
-        this.placedIngredients.leftCuttingBoard = [];
     }
 
     updateHeldIngredients() {
@@ -793,12 +890,14 @@ export class IngredientManager {
     }
 
     createPenaltyEffect(x, y, points) {
+        // Simple text effect
         const penaltyText = this.scene.add.text(x, y, `-${points}`, {
             fontSize: '24px',
             fontWeight: 'bold',
             fill: '#FF4D4D'
         }).setOrigin(0.5);
 
+        // Subtle fade-up animation
         this.scene.tweens.add({
             targets: penaltyText,
             y: y - 50,
@@ -827,6 +926,17 @@ export class IngredientManager {
         // Play sound effect
         const trashSound = this.scene.sound.add('trashDisposalSound');
         trashSound.play({ volume: 0.2 });
+    }
+
+    handlePlayerInteraction(character) {
+        // If holding an ingredient, handle drop off
+        if (character.heldIngredient) {
+            this.handleIngredientDropOff(character, character.currentZone);
+            return;
+        }
+
+        // Otherwise, try to pick up an ingredient
+        this.handleIngredientPickup(character);
     }
 
 }

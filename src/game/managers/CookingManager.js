@@ -49,18 +49,33 @@ export class CookingManager {
             const currentRecipe = this.scene.recipeManager.currentRecipe;
             console.log('Completing recipe:', currentRecipe.name);
 
-            // Create the completed meal
-            this.scene.cookingResult = this.scene.add.image(
-                this.scene.zoneManager.getZone('cookingStation').x + 100,
-                this.scene.zoneManager.getZone('cookingStation').y + 100,
-                currentRecipe.result
-            ).setScale(0.3);
+            const cookingStation = this.scene.zoneManager.getZone('cookingStation');
+            
+            // Create the completed meal with all necessary properties
+            const completedMeal = {
+                name: currentRecipe.name,
+                gameObject: this.scene.add.image(
+                    cookingStation.x + cookingStation.width / 2,
+                    cookingStation.y + cookingStation.height / 2,
+                    currentRecipe.result
+                ).setScale(0.2),
+                isCompletedMeal: true,
+                points: 50,
+                result: currentRecipe.result,
+                state: 'completed'
+            };
 
             // Clear ingredients
             this.scene.ingredientManager.clearCookingStation();
 
+            // Add completed meal to cooking station
+            this.scene.ingredientManager.placedIngredients.cookingStation.push(completedMeal);
+
             // Complete the recipe
             this.scene.recipeManager.completeRecipe();
+
+            // Start the timer for the completed meal
+            this.scene.ingredientManager.startCompletedMealTimer(completedMeal);
         }
     }
 

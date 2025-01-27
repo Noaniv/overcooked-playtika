@@ -99,18 +99,7 @@ export class OvercookedGame extends Scene {
         // Chef controls
         this.input.keyboard.on('keydown-E', () => {
             const chef = this.characterManager.getCharacter('chef');
-            const isAtCuttingBoard = chef.currentZone === 'cuttingBoard' || 
-                                    chef.currentZone === 'leftCuttingBoard';
-
-            if (isAtCuttingBoard) {
-                if (chef.heldIngredient) {
-                    this.cuttingManager.handleCuttingBoardDropoff(chef, chef.currentZone);
-                } else if (this.ingredientManager.placedIngredients[chef.currentZone].length > 0) {
-                    this.cuttingManager.startCuttingTimer(chef);
-                }
-            } else {
-                this.handlePickupAttempt(chef);
-            }
+            this.ingredientManager.handlePlayerInteraction(chef);
         });
         
         this.input.keyboard.on('keyup-E', () => {
@@ -122,18 +111,7 @@ export class OvercookedGame extends Scene {
         // Sous Chef controls
         this.input.keyboard.on('keydown-SPACE', () => {
             const sousChef = this.characterManager.getCharacter('sousChef');
-            const isAtCuttingBoard = sousChef.currentZone === 'cuttingBoard' || 
-                                    sousChef.currentZone === 'leftCuttingBoard';
-
-            if (isAtCuttingBoard) {
-                if (sousChef.heldIngredient) {
-                    this.cuttingManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
-                } else if (this.ingredientManager.placedIngredients[sousChef.currentZone].length > 0) {
-                    this.cuttingManager.startCuttingTimer(sousChef);
-                }
-            } else {
-                this.handlePickupAttempt(sousChef);
-            }
+            this.ingredientManager.handlePlayerInteraction(sousChef);
         });
         
         this.input.keyboard.on('keyup-SPACE', () => {
@@ -217,67 +195,6 @@ export class OvercookedGame extends Scene {
         );
 
         return distance < radius;
-    }
-
-    handlePickupAttempt(character) {
-        // If holding an ingredient
-        if (character.heldIngredient) {
-            // Check if at ready table with completed meal
-            if (character.currentZone === 'readyTable' && character.heldIngredient.isCompletedMeal) {
-                this.handleReadyTableDropoff(character);
-                return;
-            }
-            // Check if at trash
-            if (character.currentZone === 'leftTrash' || character.currentZone === 'rightTrash') {
-                this.ingredientManager.handleTrashDisposal(character);
-            }
-            // Check if at either cutting board
-            else if (character.currentZone === 'cuttingBoard' || character.currentZone === 'leftCuttingBoard') {
-                this.cuttingManager.handleCuttingBoardDropoff(character, character.currentZone);
-            } else if (character.currentZone === 'cookingStation') {
-                this.ingredientManager.handleCookingStationDropoff(character);
-            } else if (character.currentZone === 'divider') {
-                this.ingredientManager.handleDividerDropoff(character);
-            }
-        } else {
-            // Try to pick up from zones
-            if (character.currentZone) {
-                this.ingredientManager.handleIngredientPickup(character, character.currentZone);
-            }
-        }
-    }
-
-    handleReadyTableDropoff(character) {
-        if (!character.heldIngredient || !character.heldIngredient.isCompletedMeal) return;
-
-        const readyTable = this.zoneManager.getZone('readyTable');
-        if (!readyTable) return;
-
-        const meal = character.heldIngredient;
-        
-        // Clear the character's held ingredient first
-        character.heldIngredient = null;
-
-        // Position the meal at the ready table
-        meal.gameObject.setPosition(
-            readyTable.x + readyTable.width / 2,
-            readyTable.y + readyTable.height / 2
-        );
-
-        // Add points and create effect
-        this.addPoints(meal.points || 50);
-        this.ingredientManager.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, meal.points || 50);
-
-        // Fade out and destroy the meal
-        this.tweens.add({
-            targets: meal.gameObject,
-            alpha: 0,
-            duration: 1500,
-            ease: 'Power1',
-            onComplete: () => {
-                meal.gameObject.destroy();
-            }
-        });
     }
 
     addPoints(points) {

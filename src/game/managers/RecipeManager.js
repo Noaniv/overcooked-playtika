@@ -20,7 +20,7 @@ export class RecipeManager {
             {
                 name: 'Chips and Guac',
                 ingredients: ['Tortilla', 'Avocado', 'Tomato'],
-                result: 'chipsandguac_complete',
+                result: 'chipsAndGuac_complete',
                 image: 'chipsAndGuac_recipe'
             },
             {
