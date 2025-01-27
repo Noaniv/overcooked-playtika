@@ -1,49 +1,87 @@
-import React from 'react';
-import { MusicToggleButton } from './MusicToggleButton';
-import RecipeDisplay from './RecipeDisplay';
-import ScoreDisplay from './ScoreDisplay';
-import TimerDisplay from './TimerDisplay';
+import React, { useState, useEffect } from 'react';
+import { EventBus } from '../game/EventBus';
 
-const GameUIBar = ({ score, currentRecipe, timeLeft }) => {
-  return (
-    <div className="fixed left-0 top-0 w-40 h-full bg-gradient-to-b from-orange-900 to-red-900 
-                    text-white flex flex-col items-center gap-6 p-4 border-r-4 
-                    border-yellow-500 shadow-xl">
-      {/* Mexican pattern top border */}
-      <div className="absolute top-0 left-0 w-full h-4 bg-yellow-500 flex">
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="w-5 h-4 bg-red-600 transform rotate-45 -translate-y-2 translate-x-2" />
-        ))}
-      </div>
+const GameUIBar = () => {
+    const [score, setScore] = useState(0);
+    const [timeLeft, setTimeLeft] = useState(120);
+    const [currentRecipe, setCurrentRecipe] = useState(null);
+    const [isMuted, setIsMuted] = useState(false);
 
-      {/* Recipe Section - Larger and at the top */}
-      <div className="mt-8 mb-4">
-        <RecipeDisplay currentRecipe={currentRecipe} />
-      </div>
+    useEffect(() => {
+        const handleScore = (newScore) => setScore(newScore);
+        const handleTime = (newTime) => setTimeLeft(newTime);
+        const handleRecipe = (recipe) => setCurrentRecipe(recipe);
 
-      {/* Timer Section */}
-      <div className="mt-2">
-        <TimerDisplay timeLeft={timeLeft} />
-      </div>
+        EventBus.addListener('score-updated', handleScore);
+        EventBus.addListener('time-updated', handleTime);
+        EventBus.addListener('recipe-updated', handleRecipe);
 
-      {/* Score Section */}
-      <div className="mt-2">
-        <ScoreDisplay score={score} />
-      </div>
+        return () => {
+            EventBus.removeListener('score-updated', handleScore);
+            EventBus.removeListener('time-updated', handleTime);
+            EventBus.removeListener('recipe-updated', handleRecipe);
+        };
+    }, []);
 
-      {/* Music Toggle */}
-      <div className="mt-auto mb-8">
-        <MusicToggleButton />
-      </div>
+    const toggleMusic = () => {
+        const newMutedState = !isMuted;
+        setIsMuted(newMutedState);
+        EventBus.emit('toggleMusic', newMutedState);
+    };
 
-      {/* Mexican pattern bottom border */}
-      <div className="absolute bottom-0 left-0 w-full h-4 bg-yellow-500 flex">
-        {[...Array(8)].map((_, i) => (
-          <div key={i} className="w-5 h-4 bg-red-600 transform rotate-45 translate-y-2 translate-x-2" />
-        ))}
-      </div>
-    </div>
-  );
+    return (
+        <div style={{
+            width: '200px',
+            height: '768px',
+            backgroundColor: '#8B0000',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+        }}>
+            {/* Recipe Section */}
+            <div style={{ color: 'white' }}>
+                <h2 style={{ fontSize: '20px', marginBottom: '10px' }}>
+                    {currentRecipe?.name || 'Waiting for recipe...'}
+                </h2>
+                <div>
+                    <h3>Ingredients:</h3>
+                    <ul>
+                        {currentRecipe?.ingredients?.map((ingredient, index) => (
+                            <li key={index}>{ingredient}</li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+
+            {/* Timer */}
+            <div style={{ color: 'white' }}>
+                <h3>Time Left</h3>
+                <div style={{ fontSize: '24px' }}>
+                    {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                </div>
+            </div>
+
+            {/* Score */}
+            <div style={{ color: 'white' }}>
+                <h3>Score</h3>
+                <div style={{ fontSize: '24px' }}>{score}</div>
+            </div>
+
+            {/* Music Toggle */}
+            <button
+                onClick={toggleMusic}
+                style={{
+                    padding: '10px',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    marginTop: 'auto'
+                }}
+            >
+                {isMuted ? '🔇' : '🔊'}
+            </button>
+        </div>
+    );
 };
 
 export default GameUIBar;
