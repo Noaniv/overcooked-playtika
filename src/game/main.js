@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import { Game as PhaserGame } from 'phaser';
 import { Boot } from './scenes/Boot';
 import { CountdownScene } from './scenes/CountdownScene';
 import { GameOver } from './scenes/GameOver';
@@ -12,7 +12,11 @@ const config = {
     height: 768,
     parent: 'game-container',
     physics: {
-        default: 'arcade'
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0 },
+            debug: false
+        }
     },
     backgroundColor: '#028af8',
     scene: [
@@ -26,7 +30,9 @@ const config = {
 };
 
 const StartGame = (parent) => {
+
     return new Phaser.Game({ ...config, parent });
-};
+
+}
 
 export default StartGame;
