@@ -77,16 +77,26 @@ export class CuttingManager {
         const boardIngredients = this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone];
         if (boardIngredients.length > 0) {
             const ingredient = boardIngredients[0];
+            const x = ingredient.gameObject.x;
+            const y = ingredient.gameObject.y;
+            
+            // Destroy the ingredient
             ingredient.gameObject.destroy();
+            if (ingredient.interactiveZone) {
+                ingredient.interactiveZone.destroy();
+            }
             
             // Clear the cutting board
             this.scene.ingredientManager.placedIngredients[this.currentCharacter.currentZone] = [];
 
-            // Create penalty effect
-            this.scene.createTrashEffect(ingredient.gameObject.x, ingredient.gameObject.y);
-            
-            // Add penalty points
-            this.scene.addPoints(this.penaltyPoints);
+            // Create penalty effect and deduct points
+            this.scene.ingredientManager.createPenaltyEffect(x, y, 5);
+            this.scene.addPoints(-5);
+        }
+        
+        // Ensure held ingredient is cleared
+        if (this.currentCharacter) {
+            this.currentCharacter.heldIngredient = null;
         }
         
         this.cleanup();
@@ -129,6 +139,35 @@ export class CuttingManager {
         }
         
         this.cleanup();
+    }
+
+    handleCuttingBoardDropoff(character, zoneName) {
+        if (!character.heldIngredient) return;
+
+        const cuttingBoard = this.scene.zoneManager.getZone(zoneName);
+        if (!cuttingBoard) return;
+        
+        // Drop off ingredient first
+        this.scene.ingredientManager.dropInCuttingBoard(character, zoneName);
+        // Then start cutting
+        this.startCuttingTimer(character);
+    }
+
+    handleCuttingComplete(character) {
+        if (!character.heldIngredient) return;
+        
+        const ingredientName = character.heldIngredient.name.toLowerCase();
+        character.heldIngredient.gameObject
+            .setTexture(`${ingredientName}2`)
+            .setScale(0.2);
+        character.heldIngredient.state = 'prepped';
+        
+        const cutSound = this.scene.sound.add('drawKnifeSound');
+        cutSound.play({ volume: 0.5 });
+        
+        // Clear cutting boards
+        this.scene.ingredientManager.placedIngredients.cuttingBoard = [];
+        this.scene.ingredientManager.placedIngredients.leftCuttingBoard = [];
     }
 
     update(time, delta) {
