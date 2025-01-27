@@ -1,42 +1,35 @@
-import Phaser from 'phaser';
-import React, { useEffect } from 'react';
-import { Boot } from './scenes/Boot'; // You might need to create this
-import { MainMenu } from './scenes/MainMenu'; // Make sure you have this scene
-import { OvercookedGame } from './scenes/OvercookedGame';
-import { Preloader } from './scenes/Preloader';
-import { CountdownScene } from './scenes/CountdownScene';
+import React, { useEffect, useRef, forwardRef } from 'react';
+import StartGame from './config';
 
-export const PhaserGame = () => {
+export const PhaserGame = forwardRef(({ onGameStateUpdate }, ref) => {
+    const gameRef = useRef(null);
+    const containerRef = useRef(null);
+
     useEffect(() => {
-        const config = {
-            type: Phaser.AUTO,
-            parent: 'phaser-game',
-            width: 1024,
-            height: 768,
-            backgroundColor: '#000000',
-            scene: [Boot, Preloader, MainMenu, OvercookedGame, CountdownScene],
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 },
-                    debug: false
+        if (containerRef.current && !gameRef.current) {
+            const game = StartGame(containerRef.current);
+            gameRef.current = game;
+
+            if (ref) {
+                ref.current = game;
+            }
+
+            game.events.on('gameStateUpdate', (state) => {
+                if (onGameStateUpdate) {
+                    onGameStateUpdate(state);
                 }
-            },
-            scale: {
-                mode: Phaser.Scale.FIT,
-                autoCenter: Phaser.Scale.CENTER_BOTH
+            });
+        }
+
+        return () => {
+            if (gameRef.current) {
+                gameRef.current.destroy(true);
+                gameRef.current = null;
             }
         };
+    }, [ref, onGameStateUpdate]);
 
-        const game = new Phaser.Game(config);
+    return <div ref={containerRef} className="w-full h-full" />;
+});
 
-        // Cleanup on unmount
-        return () => {
-            game.destroy(true);
-        };
-    }, []);
-
-    return <div id="phaser-game" />;
-};
-
-export default PhaserGame;
+PhaserGame.displayName = 'PhaserGame';
