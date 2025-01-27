@@ -5,6 +5,7 @@ import { GameOver } from './scenes/GameOver';
 import { MainMenu } from './scenes/MainMenu';
 import { OvercookedGame } from './scenes/OvercookedGame';
 import { Preloader } from './scenes/Preloader';
+import { TransitionScene } from './scenes/TransitionScene';
 
 const config = {
     type: Phaser.AUTO,
@@ -25,7 +26,8 @@ const config = {
         MainMenu,
         CountdownScene,
         OvercookedGame,
-        GameOver
+        GameOver,
+        TransitionScene
     ]
 };
 

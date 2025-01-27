@@ -194,7 +194,10 @@ export class CountdownScene extends Scene {
                     if (this.countdownSound && this.countdownSound.isPlaying) {
                         this.countdownSound.stop();
                     }
-                    this.scene.start('OvercookedGame');
+                    this.scene.start('TransitionScene', {
+                        nextScene: 'OvercookedGame',
+                        duration: 1200
+                    });
                 }
             });
         };
