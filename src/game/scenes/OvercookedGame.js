@@ -15,9 +15,7 @@ export class OvercookedGame extends Scene {
         this.spaceKeyIsDown = false;
         this.despawnTimers = new Map();
         this.gameTimer = null;
-        this.timeText = null;
         this.score = 0;
-        this.scoreText = null;
         
         // Initialize managers
         this.recipeManager = null;
@@ -79,9 +77,6 @@ export class OvercookedGame extends Scene {
 
         // Start the recipe manager at the end of create
         this.recipeManager.start();
-
-        // Create UI container in the sidebar
-        this.createSidebarUI(width, height);
 
         EventBus.emit('current-scene-ready', this);
         EventBus.emit('scene-changed', 'OvercookedGame');
@@ -407,20 +402,6 @@ export class OvercookedGame extends Scene {
     }
 
     shutdown() {
-        // Remove event listeners first
-        EventBus.off('time-updated', this.updateTimeHandler);
-        EventBus.off('score-updated', this.updateScoreHandler);
-
-        // Clean up UI elements
-        if (this.timeText) {
-            this.timeText.destroy();
-            this.timeText = null;
-        }
-        if (this.scoreText) {
-            this.scoreText.destroy();
-            this.scoreText = null;
-        }
-
         // Clean up managers
         if (this.cookingManager) {
             this.cookingManager.cleanup();
@@ -428,106 +409,5 @@ export class OvercookedGame extends Scene {
 
         // Clean up scene change
         EventBus.emit('scene-changed', null);
-    }
-
-    createSidebarUI(width, height) {
-        // Create container for UI elements in sidebar
-        const sidebar = this.add.container(width - 120, 10);
-
-        // Add background for UI elements
-        const uiBackground = this.add.rectangle(0, 0, 110, 160, 0x000000, 0.3)
-            .setOrigin(0, 0);
-        sidebar.add(uiBackground);
-
-        // Add timer
-        const timerLabel = this.add.text(10, 10, 'Time:', {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ffffff'
-        }).setOrigin(0);
-        
-        this.timeText = this.add.text(65, 10, '120', {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ffffff'
-        }).setOrigin(0);
-
-        // Add score
-        const scoreLabel = this.add.text(10, 40, 'Score:', {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ffffff'
-        }).setOrigin(0);
-        
-        this.scoreText = this.add.text(65, 40, '0', {
-            fontSize: '16px',
-            fontFamily: 'Arial',
-            color: '#ffffff'
-        }).setOrigin(0);
-
-        // Add all elements to sidebar (removed recipe elements)
-        sidebar.add([timerLabel, this.timeText, scoreLabel, this.scoreText]);
-
-        // Store bound event handlers
-        this.updateTimeHandler = this.updateTime.bind(this);
-        this.updateScoreHandler = this.updateScore.bind(this);
-
-        // Set up event listeners with bound handlers
-        EventBus.on('time-updated', this.updateTimeHandler);
-        EventBus.on('score-updated', this.updateScoreHandler);
-    }
-
-    // Separate methods for event handling
-    updateTime(time) {
-        if (this.timeText && this.timeText.active && !this.timeText.destroyed) {
-            try {
-                this.timeText.setText(time.toString());
-            } catch (error) {
-                console.warn('Error updating time text:', error);
-            }
-        }
-    }
-
-    updateScore(score) {
-        if (this.scoreText && this.scoreText.active && !this.scoreText.destroyed) {
-            try {
-                this.scoreText.setText(score.toString());
-            } catch (error) {
-                console.warn('Error updating score text:', error);
-            }
-        }
-    }
-
-    updateRecipe(recipeData) {
-        if (this.recipeDisplay && this.recipeDisplay.active && !this.recipeDisplay.destroyed && this.scene) {
-            try {
-                // Default to placeholder if no recipe data
-                if (!recipeData) {
-                    this.recipeDisplay.setTexture('guacamole_recipe');
-                    return;
-                }
-
-                // Get the image name directly from the recipe data
-                const textureName = recipeData.image;
-                
-                // Log for debugging
-                console.log('Updating recipe display:', {
-                    recipeData,
-                    textureName,
-                    exists: this.textures.exists(textureName)
-                });
-
-                // Only set texture if it exists
-                if (this.textures.exists(textureName)) {
-                    this.recipeDisplay.setTexture(textureName);
-                    this.recipeDisplay.setScale(0.4); // Ensure consistent scale
-                } else {
-                    console.warn(`Recipe texture "${textureName}" not found, using default`);
-                    this.recipeDisplay.setTexture('guacamole_recipe');
-                }
-            } catch (error) {
-                console.warn('Error updating recipe display:', error);
-            }
-        }
     }
 }

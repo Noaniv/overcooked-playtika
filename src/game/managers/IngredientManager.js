@@ -595,6 +595,8 @@ export class IngredientManager {
         }
 
         // Create trash effect and deduct points
+        const trashSound = this.scene.sound.add('trashDisposalSound');
+        trashSound.play({ volume: 0.3 });
         this.createTrashEffect(x, y);
         this.scene.addPoints(-5);
 

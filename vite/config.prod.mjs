@@ -1,5 +1,7 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import tailwindcss from 'tailwindcss'
+import autoprefixer from 'autoprefixer'
 
 const phasermsg = () => {
     return {
@@ -11,7 +13,6 @@ const phasermsg = () => {
             const line = "---------------------------------------------------------";
             const msg = `❤️❤️❤️ Tell us about your game! - games@phaser.io ❤️❤️❤️`;
             process.stdout.write(`${line}\n${msg}\n${line}\n`);
-
             process.stdout.write(`✨ Done ✨\n`);
         }
     }
@@ -23,6 +24,15 @@ export default defineConfig({
         react(),
         phasermsg()
     ],
+    css: {
+        postcss: {
+            plugins: [
+                tailwindcss,
+                autoprefixer
+            ],
+        },
+    },
+    publicDir: 'public',
     logLevel: 'warning',
     build: {
         rollupOptions: {
@@ -41,6 +51,9 @@ export default defineConfig({
             format: {
                 comments: false
             }
-        }
+        },
+        outDir: 'dist',
+        assetsDir: 'assets',
+        emptyOutDir: true
     }
-});
+})
