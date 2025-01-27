@@ -99,18 +99,7 @@ export class OvercookedGame extends Scene {
         // Chef controls
         this.input.keyboard.on('keydown-E', () => {
             const chef = this.characterManager.getCharacter('chef');
-            const isAtCuttingBoard = chef.currentZone === 'cuttingBoard' || 
-                                    chef.currentZone === 'leftCuttingBoard';
-
-            if (isAtCuttingBoard) {
-                if (chef.heldIngredient) {
-                    this.cuttingManager.handleCuttingBoardDropoff(chef, chef.currentZone);
-                } else if (this.ingredientManager.placedIngredients[chef.currentZone].length > 0) {
-                    this.cuttingManager.startCuttingTimer(chef);
-                }
-            } else {
-                this.handlePickupAttempt(chef);
-            }
+            this.ingredientManager.handlePlayerInteraction(chef);
         });
         
         this.input.keyboard.on('keyup-E', () => {
@@ -122,18 +111,7 @@ export class OvercookedGame extends Scene {
         // Sous Chef controls
         this.input.keyboard.on('keydown-SPACE', () => {
             const sousChef = this.characterManager.getCharacter('sousChef');
-            const isAtCuttingBoard = sousChef.currentZone === 'cuttingBoard' || 
-                                    sousChef.currentZone === 'leftCuttingBoard';
-
-            if (isAtCuttingBoard) {
-                if (sousChef.heldIngredient) {
-                    this.cuttingManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
-                } else if (this.ingredientManager.placedIngredients[sousChef.currentZone].length > 0) {
-                    this.cuttingManager.startCuttingTimer(sousChef);
-                }
-            } else {
-                this.handlePickupAttempt(sousChef);
-            }
+            this.ingredientManager.handlePlayerInteraction(sousChef);
         });
         
         this.input.keyboard.on('keyup-SPACE', () => {
@@ -217,34 +195,6 @@ export class OvercookedGame extends Scene {
         );
 
         return distance < radius;
-    }
-
-    handlePickupAttempt(character) {
-        // If holding an ingredient
-        if (character.heldIngredient) {
-            // Check if at ready table with completed meal
-            if (character.currentZone === 'readyTable' && character.heldIngredient.isCompletedMeal) {
-                this.ingredientManager.handleReadyTableDropoff(character);
-                return;
-            }
-            // Check if at trash
-            if (character.currentZone === 'leftTrash' || character.currentZone === 'rightTrash') {
-                this.ingredientManager.handleTrashDisposal(character);
-            }
-            // Check if at either cutting board
-            else if (character.currentZone === 'cuttingBoard' || character.currentZone === 'leftCuttingBoard') {
-                this.cuttingManager.handleCuttingBoardDropoff(character, character.currentZone);
-            } else if (character.currentZone === 'cookingStation') {
-                this.ingredientManager.handleCookingStationDropoff(character);
-            } else if (character.currentZone === 'divider') {
-                this.ingredientManager.handleDividerDropoff(character);
-            }
-        } else {
-            // Try to pick up from zones
-            if (character.currentZone) {
-                this.ingredientManager.handleIngredientPickup(character, character.currentZone);
-            }
-        }
     }
 
     addPoints(points) {
