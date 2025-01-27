@@ -32,8 +32,8 @@ export default function GameUIBar() {
 
     const getIngredientImage = (ingredientName) => {
         // Convert ingredient name to lowercase and remove spaces for asset naming
-        const assetName = `${ingredientName.toLowerCase()}1`;
-        return `/assets/raw_ingredients/${assetName}.png`;
+        const assetName = `${ingredientName.toLowerCase()}2`;
+        return `/assets/prepped_ingredients/${assetName}.png`;
     };
 
     return (

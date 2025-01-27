@@ -129,7 +129,7 @@ export class OvercookedGame extends Scene {
     }
 
     startGameTimer() {
-        let timeLeft = 120; // 2 minutes in seconds
+        let timeLeft = 5; // 2 minutes in seconds
         
         this.gameTimer = this.time.addEvent({
             delay: 1000,
@@ -160,42 +160,7 @@ export class OvercookedGame extends Scene {
     }    
 
     // Helper function for checking proximity (adjusted for full height interaction)
-    isNearZone(player, zone, radius = 60) {
-        if (zone === this.zoneManager.getZone('cuttingBoard')) {
-            radius = 50; // Much smaller radius for cutting board interactions
-        }
-        const playerCenterX = player.x ;
-        const playerCenterY = player.y ;
 
-        // Get the left and right edges of the zone (since the zone is rectangular)
-        const zoneLeft = zone.x;
-        const zoneRight = zone.x + zone.width;
-        
-        // For vertical zones (like divider), we consider the full height
-        const zoneTop = zone.y;
-        const zoneBottom = zone.y + zone.height;
-
-        // Calculate horizontal and vertical distances from the player to the zone's edges
-        const distanceX = Math.max(0, Math.abs(playerCenterX - (zoneLeft + zone.width / 2)) - zone.width / 2);
-        const distanceY = Math.max(0, Math.max(zoneTop - playerCenterY, playerCenterY - zoneBottom));
-
-        // Check if player is within radius horizontally and vertically along the divider's full height
-        return distanceX < radius && distanceY < radius;
-    }
-
-    isNearIngredient(player, ingredient, radius = 70) {
-        const playerCenterX = player.x + player.width / 2;
-        const playerCenterY = player.y + player.height / 2;
-
-        const distance = Phaser.Math.Distance.Between(
-            playerCenterX,
-            playerCenterY,
-            ingredient.x,
-            ingredient.y
-        );
-
-        return distance < radius;
-    }
 
     addPoints(points) {
         this.score += points;
@@ -283,39 +248,6 @@ export class OvercookedGame extends Scene {
         // Play a softer sound effect
         const trashSound = this.sound.add('trashDisposalSound');
         trashSound.play({ volume: 0.2 });
-    }
-
-    dropOffAtReadyTable(chef) {
-        const heldIngredient = chef.heldIngredient;
-        if (!heldIngredient) return;
-        
-        const meal = heldIngredient;
-        
-        // Clear the chef's held ingredient before the tween
-        chef.heldIngredient = null;
-
-        // Place the meal at the ready table
-        if (meal.gameObject && meal.gameObject.active) {
-            const readyTable = this.zoneManager.getZone('readyTable');
-            meal.gameObject.setPosition(
-                readyTable.x + readyTable.width / 2,
-                readyTable.y + readyTable.height / 2
-            );
-        
-            this.tweens.add({
-                targets: meal.gameObject,
-                alpha: 0,
-                duration: 1500,
-                onComplete: () => {
-                    if (meal.gameObject && meal.gameObject.active) {
-                        meal.gameObject.destroy();
-                    }
-                }
-            });
-        }
-
-        // Add points to the score
-        this.addPoints(meal.points || 40);
     }
 
     shutdown() {
