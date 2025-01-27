@@ -31,25 +31,25 @@ export class RecipeManager {
             },
             {
                 name: 'Nachos',
-                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                ingredients: ['Tortilla', 'Meat', 'Tomato', 'Cheese'],
                 result: 'nachos_complete',
                 image: 'nachos_recipe'
             },
             {
                 name: 'Sope',
-                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                ingredients: ['Tortilla', 'Meat', 'Tomato',"Avocado"],
                 result: 'sope_complete',
                 image: 'sope_recipe'
             },
             {
                 name: 'Mexican Salad',
-                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                ingredients: ['Tortilla', 'Meat', 'Tomato', 'Cheese'],
                 result: 'mexicanSalad_complete',
                 image: 'mexicanSalad_recipe'
             },
             {
-                name: 'Cheese Wrap',
-                ingredients: ['Tortilla', 'Meat', 'Tomato'],
+                name: 'Taquito',
+                ingredients: ['Tortilla', 'Meat', 'Tomato', 'Avocado'],
                 result: 'cheeseWrap_complete',
                 image: 'cheeseWrap_recipe'
             }
@@ -57,8 +57,13 @@ export class RecipeManager {
     }
 
     cycleToNextRecipe() {
-        const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
-        this.currentRecipe = this.recipes[recipeIndex];
+        // Get a random index different from the current recipe
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * this.recipes.length);
+        } while (this.recipes[newIndex] === this.currentRecipe && this.recipes.length > 1);
+        
+        this.currentRecipe = this.recipes[newIndex];
         
         console.log('Emitting recipe update:', {
             name: this.currentRecipe.name,
@@ -153,7 +158,9 @@ export class RecipeManager {
 
     // Initialize with first recipe
     start() {
-        this.currentRecipe = this.recipes[0];
+        // Choose a random recipe to start with
+        const randomIndex = Math.floor(Math.random() * this.recipes.length);
+        this.currentRecipe = this.recipes[randomIndex];
         console.log('Starting with recipe:', this.currentRecipe);
         EventBus.emit('recipe-updated', this.currentRecipe);
     }

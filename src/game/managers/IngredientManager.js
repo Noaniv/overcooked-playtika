@@ -39,8 +39,8 @@ export class IngredientManager {
         }
     }
 
-    // New method to create a single ingredient
-    createIngredient(name, x, y, scale = 1) {
+    // Rename createIngredient to createSourceIngredient
+    createSourceIngredient(name, x, y, scale = 1) {
         // Create the interactive zone first
         const interactiveZone = this.createIngredientZone(x, y, name);
         const zoneBounds = interactiveZone.getBounds();
@@ -91,7 +91,7 @@ export class IngredientManager {
 
         // Create new ingredients based on configs
         ingredientConfigs.forEach(config => {
-            this.createIngredient(
+            this.createSourceIngredient(
                 config.name,
                 config.x,
                 config.y,
@@ -202,7 +202,8 @@ export class IngredientManager {
         this.placedIngredients.cookingStation = [];
     }
 
-    createNewIngredient(name, x, y, state = 'raw', scale = 0.3) {
+    // Rename createNewIngredient to createIngredientInstance
+    createIngredientInstance(name, x, y, state = 'raw', scale = 0.3) {
         return {
             name: name,
             gameObject: this.scene.add.image(x, y, `${name.toLowerCase()}1`)
@@ -389,7 +390,7 @@ export class IngredientManager {
             }
 
             // Create new instance using the shared method
-            character.heldIngredient = this.createNewIngredient(
+            character.heldIngredient = this.createIngredientInstance(
                 foundIngredient.name,
                 foundIngredient.x,
                 foundIngredient.y,
@@ -549,67 +550,11 @@ export class IngredientManager {
         character.heldIngredient.originalScale = 0.3;
         
         this.placedIngredients.cookingStation.push(character.heldIngredient);
+        
+        // Start cooking process
+        this.scene.cookingManager.startCooking();
+        
         character.heldIngredient = null;
-
-        // Play cooking sound
-        const cookingSound = this.scene.sound.add('cookingKitchenSound');
-        cookingSound.play({ 
-            volume: 0.3,
-            duration: 1000
-        });
-
-        // Check recipe completion after adding new ingredient
-        const currentIngredients = this.placedIngredients.cookingStation;
-        console.log('Current ingredients in cooking station:', currentIngredients.map(ing => ({
-            name: ing.name,
-            state: ing.state
-        })));
-
-        if (this.scene.recipeManager.checkRecipeCompletion(currentIngredients)) {
-            console.log('Recipe complete!');
-            
-            // Clear existing ingredients first
-            this.clearCookingStation();
-            
-            // Get the current recipe
-            const recipe = this.scene.recipeManager.currentRecipe;
-            
-            // Create the completed meal with proper properties
-            const completedMeal = {
-                name: recipe.name,
-                gameObject: this.scene.add.image(dropPos.x, dropPos.y, recipe.result)
-                    .setScale(0.4)
-                    .setInteractive(),
-                isCompletedMeal: true,
-                points: 50,
-                state: 'completed',
-                interactiveZone: this.createIngredientZone(dropPos.x, dropPos.y, recipe.name)
-            };
-
-            // Add visual feedback for completion
-            this.scene.tweens.add({
-                targets: completedMeal.gameObject,
-                scale: 0.5,
-                duration: 200,
-                yoyo: true,
-                repeat: 1
-            });
-
-            // Play success sound
-            const successSound = this.scene.sound.add('pickupSound');
-            successSound.play({ volume: 0.3 });
-
-            // Place completed meal in cooking station
-            this.placedIngredients.cookingStation = [completedMeal];
-
-            // Move to next recipe
-            this.scene.recipeManager.completeRecipe();
-
-            // Create success effect
-            this.createSuccessEffect(dropPos.x, dropPos.y);
-        } else {
-            console.log('Recipe not complete yet');
-        }
     }
 
     dropInCuttingBoard(character, zoneName) {
@@ -640,6 +585,7 @@ export class IngredientManager {
         const x = character.heldIngredient.gameObject.x;
         const y = character.heldIngredient.gameObject.y;
 
+        // Clean up the ingredient
         character.heldIngredient.gameObject.destroy();
         if (character.heldIngredient.interactiveZone) {
             character.heldIngredient.interactiveZone.destroy();
@@ -648,10 +594,40 @@ export class IngredientManager {
             character.heldIngredient.debugVisual.destroy();
         }
 
-        const trashSound = this.scene.sound.add('trashDisposalSound');
-        trashSound.play({ volume: 0.3 });
+        // Create trash effect and deduct points
+        this.createTrashEffect(x, y);
+        this.scene.addPoints(-5);
 
-        this.scene.createTrashEffect(x, y);
+        character.heldIngredient = null;
+    }
+
+    handleReadyTableDropoff(character) {
+        if (!character.heldIngredient?.isCompletedMeal) return;
+
+        const readyTable = this.scene.zoneManager.getZone('readyTable');
+        if (!readyTable) return;
+
+        const meal = character.heldIngredient;
+        const points = meal.points || 50;
+        
+        // Position the meal
+        meal.gameObject.setPosition(
+            readyTable.x + readyTable.width / 2,
+            readyTable.y + readyTable.height / 2
+        );
+
+        // Create success effect and add points
+        this.scene.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, points);
+        this.scene.addPoints(points);
+
+        // Fade out and destroy
+        this.scene.tweens.add({
+            targets: meal.gameObject,
+            alpha: 0,
+            duration: 1500,
+            onComplete: () => meal.gameObject.destroy()
+        });
+
         character.heldIngredient = null;
     }
 
@@ -755,65 +731,30 @@ export class IngredientManager {
         }
     }
 
-    handleReadyTableDropoff(character) {
-        if (!character.heldIngredient || !character.heldIngredient.isCompletedMeal) {
-            return; // Only allow completed meals to be dropped at ready table
-        }
-
-        const readyTable = this.scene.zoneManager.getZone('readyTable');
-        if (!readyTable) return;
-
-        const meal = character.heldIngredient;
-        
-        // Clear the character's held ingredient
-        character.heldIngredient = null;
-
-        // Position the meal at the ready table
-        meal.gameObject.setPosition(
-            readyTable.x + readyTable.width / 2,
-            readyTable.y + readyTable.height / 2
-        );
-
-        // Add points
-        this.scene.addPoints(meal.points || 50);
-
-        // Create success effect
-        this.createSuccessEffect(meal.gameObject.x, meal.gameObject.y);
-
-        // Fade out and destroy the meal
-        this.scene.tweens.add({
-            targets: meal.gameObject,
-            alpha: 0,
-            duration: 500,
-            onComplete: () => {
-                meal.gameObject.destroy();
-            }
-        });
-    }
-
-    createSuccessEffect(x, y) {
-        // Create a success text effect
-        const successText = this.scene.add.text(x, y, '+50', {
+    createTrashEffect(x, y) {
+        // Create the "-5" text effect
+        const penaltyText = this.scene.add.text(x, y, '-5', {
             fontSize: '32px',
             fontWeight: 'bold',
-            fill: '#00ff00'
+            fill: '#FF0000'
         }).setOrigin(0.5);
+
+        // Simple red flash
+        const flash = this.scene.add.rectangle(x, y, 50, 50, 0xff0000)
+            .setAlpha(0.7)
+            .setOrigin(0.5);
 
         // Animate the text
         this.scene.tweens.add({
-            targets: successText,
+            targets: penaltyText,
             y: y - 100,
             alpha: 0,
             duration: 1000,
             ease: 'Power1',
-            onComplete: () => successText.destroy()
+            onComplete: () => penaltyText.destroy()
         });
 
-        // Add a flash effect
-        const flash = this.scene.add.rectangle(x, y, 100, 100, 0x00ff00)
-            .setAlpha(0.5)
-            .setOrigin(0.5);
-
+        // Animate the flash
         this.scene.tweens.add({
             targets: flash,
             alpha: 0,
@@ -822,8 +763,68 @@ export class IngredientManager {
             onComplete: () => flash.destroy()
         });
 
+        // Add camera shake
+        this.scene.cameras.main.shake(200, 0.005);
+    }
+
+    createSuccessEffect(x, y, points) {
+        // Create success text
+        const successText = this.scene.add.text(x, y, `+${points}`, {
+            fontSize: '32px',
+            fontWeight: 'bold',
+            fill: '#00ff00'
+        }).setOrigin(0.5);
+
+        // Animate success text
+        this.scene.tweens.add({
+            targets: successText,
+            y: y - 150,
+            alpha: 0,
+            duration: 2000,
+            ease: 'Power1',
+            onComplete: () => successText.destroy()
+        });
+
         // Play success sound
         const successSound = this.scene.sound.add('pickupSound');
         successSound.play({ volume: 0.3 });
     }
+
+    createPenaltyEffect(x, y, points) {
+        const penaltyText = this.scene.add.text(x, y, `-${points}`, {
+            fontSize: '24px',
+            fontWeight: 'bold',
+            fill: '#FF4D4D'
+        }).setOrigin(0.5);
+
+        this.scene.tweens.add({
+            targets: penaltyText,
+            y: y - 50,
+            alpha: 0,
+            duration: 800,
+            ease: 'Power1',
+            onComplete: () => penaltyText.destroy()
+        });
+
+        // Small flash effect
+        const flash = this.scene.add.rectangle(x, y, 40, 40, 0xff0000)
+            .setAlpha(0.3)
+            .setOrigin(0.5);
+
+        this.scene.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 1.5,
+            duration: 200,
+            onComplete: () => flash.destroy()
+        });
+
+        // Camera shake
+        this.scene.cameras.main.shake(150, 0.02);
+
+        // Play sound effect
+        const trashSound = this.scene.sound.add('trashDisposalSound');
+        trashSound.play({ volume: 0.2 });
+    }
+
 }

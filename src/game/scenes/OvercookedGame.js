@@ -109,16 +109,12 @@ export class OvercookedGame extends Scene {
 
             if (isAtCuttingBoard) {
                 if (chef.heldIngredient) {
-                    // Drop off ingredient first
-                    this.ingredientManager.dropInCuttingBoard(chef, chef.currentZone);
-                    // Then start cutting
-                    this.cuttingManager.startCuttingTimer(chef);
+                    this.cuttingManager.handleCuttingBoardDropoff(chef, chef.currentZone);
                 } else if (this.ingredientManager.placedIngredients[chef.currentZone].length > 0) {
-                    // If there's already an ingredient on the board, start cutting
                     this.cuttingManager.startCuttingTimer(chef);
                 }
             } else {
-                this.handleChefInteraction();
+                this.handlePickupAttempt(chef);
             }
         });
         
@@ -136,16 +132,12 @@ export class OvercookedGame extends Scene {
 
             if (isAtCuttingBoard) {
                 if (sousChef.heldIngredient) {
-                    // Drop off ingredient first
-                    this.ingredientManager.dropInCuttingBoard(sousChef, sousChef.currentZone);
-                    // Then start cutting
-                    this.cuttingManager.startCuttingTimer(sousChef);
+                    this.cuttingManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
                 } else if (this.ingredientManager.placedIngredients[sousChef.currentZone].length > 0) {
-                    // If there's already an ingredient on the board, start cutting
                     this.cuttingManager.startCuttingTimer(sousChef);
                 }
             } else {
-                this.handleSousChefInteraction();
+                this.handlePickupAttempt(sousChef);
             }
         });
         
@@ -232,62 +224,30 @@ export class OvercookedGame extends Scene {
         return distance < radius;
     }
 
-    handleChefInteraction() {
-        const chef = this.characterManager.getCharacter('chef');
-        
+    handlePickupAttempt(character) {
         // If holding an ingredient
-        if (chef.heldIngredient) {
+        if (character.heldIngredient) {
             // Check if at ready table with completed meal
-            if (chef.currentZone === 'readyTable' && chef.heldIngredient.isCompletedMeal) {
-                this.handleReadyTableDropoff(chef);
+            if (character.currentZone === 'readyTable' && character.heldIngredient.isCompletedMeal) {
+                this.handleReadyTableDropoff(character);
                 return;
             }
             // Check if at trash
-            if (chef.currentZone === 'leftTrash' || chef.currentZone === 'rightTrash') {
-                this.ingredientManager.handleTrashDisposal(chef);
+            if (character.currentZone === 'leftTrash' || character.currentZone === 'rightTrash') {
+                this.ingredientManager.handleTrashDisposal(character);
             }
             // Check if at either cutting board
-            else if (chef.currentZone === 'cuttingBoard' || chef.currentZone === 'leftCuttingBoard') {
-                this.ingredientManager.handleCuttingBoardDropoff(chef, chef.currentZone);
-            } else if (chef.currentZone === 'divider') {
-                this.ingredientManager.handleDividerDropoff(chef);
-            } else if (chef.currentZone === 'cookingStation') {
-                this.ingredientManager.handleCookingStationDropoff(chef);
+            else if (character.currentZone === 'cuttingBoard' || character.currentZone === 'leftCuttingBoard') {
+                this.cuttingManager.handleCuttingBoardDropoff(character, character.currentZone);
+            } else if (character.currentZone === 'cookingStation') {
+                this.ingredientManager.handleCookingStationDropoff(character);
+            } else if (character.currentZone === 'divider') {
+                this.ingredientManager.handleDividerDropoff(character);
             }
         } else {
             // Try to pick up from zones
-            if (chef.currentZone) {
-                this.ingredientManager.handleIngredientPickup(chef, chef.currentZone);
-            }
-        }
-    }
-
-    handleSousChefInteraction() {
-        const sousChef = this.characterManager.getCharacter('sousChef');
-        
-        // If holding an ingredient
-        if (sousChef.heldIngredient) {
-            // Check if at ready table with completed meal
-            if (sousChef.currentZone === 'readyTable' && sousChef.heldIngredient.isCompletedMeal) {
-                this.handleReadyTableDropoff(sousChef);
-                return;
-            }
-            // Check if at trash
-            if (sousChef.currentZone === 'leftTrash' || sousChef.currentZone === 'rightTrash') {
-                this.ingredientManager.handleTrashDisposal(sousChef);
-            }
-            // Check if at either cutting board
-            else if (sousChef.currentZone === 'cuttingBoard' || sousChef.currentZone === 'leftCuttingBoard') {
-                this.ingredientManager.handleCuttingBoardDropoff(sousChef, sousChef.currentZone);
-            } else if (sousChef.currentZone === 'divider') {
-                this.ingredientManager.handleDividerDropoff(sousChef);
-            } else if (sousChef.currentZone === 'cookingStation') {
-                this.ingredientManager.handleCookingStationDropoff(sousChef);
-            }
-        } else {
-            // Try to pick up from zones
-            if (sousChef.currentZone) {
-                this.ingredientManager.handleIngredientPickup(sousChef, sousChef.currentZone);
+            if (character.currentZone) {
+                this.ingredientManager.handleIngredientPickup(character, character.currentZone);
             }
         }
     }
@@ -309,297 +269,25 @@ export class OvercookedGame extends Scene {
             readyTable.y + readyTable.height / 2
         );
 
-        // Add points
+        // Add points and create effect
         this.addPoints(meal.points || 50);
+        this.ingredientManager.createSuccessEffect(meal.gameObject.x, meal.gameObject.y, meal.points || 50);
 
-        // Create success effect
-        const successText = this.add.text(
-            meal.gameObject.x,
-            meal.gameObject.y,
-            '+50',
-            {
-                fontSize: '32px',
-                fontWeight: 'bold',
-                fill: '#00ff00'
-            }
-        ).setOrigin(0.5);
-
-        // Animate success text - slower and higher
-        this.tweens.add({
-            targets: successText,
-            y: successText.y - 150,
-            alpha: 0,
-            duration: 2000,
-            ease: 'Power1',
-            onComplete: () => successText.destroy()
-        });
-
-        // Fade out and destroy the meal - slower fade
+        // Fade out and destroy the meal
         this.tweens.add({
             targets: meal.gameObject,
             alpha: 0,
-            duration: 1500,  // Increased from 500 to 1500
+            duration: 1500,
             ease: 'Power1',
             onComplete: () => {
                 meal.gameObject.destroy();
             }
         });
-
-        // Play success sound
-        const successSound = this.sound.add('pickupSound');
-        successSound.play({ volume: 0.3 });
-    }
-
-    handleChefPickupAttempt() {
-        const chef = this.characterManager.getCharacter('chef');
-        // Don't pick up if already holding something
-        if (chef.heldIngredient) return;
-
-        // First priority: Check for completed meal pickup
-        if (this.cookingResult && this.characterManager.activeZoneOverlaps.get('chef').has('cookingStation')) {
-            this.pickupCompletedMeal(chef);
-            return;
-        }
-
-        // Try to pick up from current zone
-        if (chef.currentZone) {
-            // Check if we're in a valid zone and overlapping with an ingredient
-            if (this.characterManager.isInZone(chef, chef.currentZone)) {
-                this.ingredientManager.handleIngredientPickup(
-                    chef, 
-                    chef.currentZone
-                );
-            }
-        }
-    }
-
-    handleChefDropOffAttempt(chef) {
-        const heldIngredient = chef.heldIngredient;
-        if (!heldIngredient) return;
-
-        // If in cutting board zone, start cutting
-        if (this.characterManager.activeZoneOverlaps.get('chef').has('cuttingBoard')) {
-            this.ingredientManager.handleIngredientDropOff(chef, 'cuttingBoard');
-            return;
-        }
-
-        // Special case for ready table - only allow completed meals
-        if (this.characterManager.activeZoneOverlaps.get('chef').has('readyTable') && heldIngredient.isCompletedMeal) {
-            this.dropOffAtReadyTable(chef);
-            return;
-        }
-
-        // Handle trash disposal
-        if (this.characterManager.activeZoneOverlaps.get('chef').has('leftTrash') || 
-            this.characterManager.activeZoneOverlaps.get('chef').has('rightTrash')) {
-            this.handleTrashDisposal(chef);
-            return;
-        }
-
-        // Handle other zones
-        if (chef.currentZone) {
-            this.ingredientManager.handleIngredientDropOff(chef, chef.currentZone);
-        }
-    }
-
-    pickupCompletedMeal(chef) {
-        // Cancel penalty timer
-        if (this.pickupTimer) {
-            this.pickupTimer.remove();
-        }
-
-        if (!this.cookingResult) return;
-
-        const completedRecipeName = this.cookingResult.recipeName;
-        
-        chef.heldIngredient = {
-            name: completedRecipeName,
-            gameObject: this.cookingResult,
-            isCompletedMeal: true,  // Mark as completed meal
-            points: this.cookingResult.points
-        };
-        this.cookingResult = null;
-
-        // Award points
-        this.addPoints(40); // Default points or use this.cookingResult.points
-    }
-
-    handleSousChefPickupAttempt() {
-        const sousChef = this.characterManager.getCharacter('sousChef');
-        // Don't pick up if already holding something
-        if (sousChef.heldIngredient) return;
-
-        // First priority: Check for completed meal pickup
-        if (this.cookingResult && this.characterManager.activeZoneOverlaps.get('sousChef').has('cookingStation')) {
-            this.pickupCompletedMeal(sousChef);
-            return;
-        }
-
-        // Try to pick up from current zone
-        if (sousChef.currentZone) {
-            // Check if we're in a valid zone and overlapping with an ingredient
-            if (this.characterManager.isInZone(sousChef, sousChef.currentZone)) {
-                this.ingredientManager.handleIngredientPickup(
-                    sousChef, 
-                    sousChef.currentZone
-                );
-            }
-        }
-    }
-
-    handleSousChefDropOffAttempt(sousChef) {
-        const heldIngredient = sousChef.heldIngredient;
-        if (!heldIngredient) return;
-
-        // If in cutting board zone, start cutting
-        if (this.characterManager.activeZoneOverlaps.get('sousChef').has('cuttingBoard')) {
-            this.ingredientManager.handleIngredientDropOff(sousChef, 'cuttingBoard');
-            return;
-        }
-
-        // Handle trash disposal
-        if (this.characterManager.activeZoneOverlaps.get('sousChef').has('leftTrash') || 
-            this.characterManager.activeZoneOverlaps.get('sousChef').has('rightTrash')) {
-            this.handleTrashDisposal(sousChef);
-            return;
-        }
-
-        // Handle other zones
-        if (sousChef.currentZone) {
-            this.ingredientManager.handleIngredientDropOff(sousChef, sousChef.currentZone);
-        }
-    }
-
-    handleTrashDisposal(character) {
-        if (!character.heldIngredient) return; // Guard clause
-    
-        const ingredientX = character.heldIngredient.gameObject.x;
-        const ingredientY = character.heldIngredient.gameObject.y;
-    
-        // Clean up all ingredient visuals and properties
-        if (character.heldIngredient.gameObject) {
-            character.heldIngredient.gameObject.destroy();
-        }
-        if (character.heldIngredient.interactiveZone) {
-            character.heldIngredient.interactiveZone.destroy();
-        }
-        if (character.heldIngredient.debugVisual) {
-            character.heldIngredient.debugVisual.destroy();
-        }
-        if (character.heldIngredient.debugText) {
-            character.heldIngredient.debugText.destroy();
-        }
-    
-        // Clear the reference immediately
-        character.heldIngredient = null;
-    
-        // Apply score penalty
-        this.score -= 5;
-        // Emit score update after penalty
-        EventBus.emit('score-updated', this.score);
-        
-        // Create visual effects after cleanup
-        this.createTrashEffect(ingredientX, ingredientY);
-    }
-    
-    createTrashEffect(x, y) {
-        // Create the "-10" text effect
-        const penaltyText = this.add.text(x, y, '-5', {
-            fontSize: '32px',
-            fontWeight: 'bold',
-            fill: '#FF0000'
-        }).setOrigin(0.5);
-    
-        // Simple red flash
-        const flash = this.add.rectangle(x, y, 50, 50, 0xff0000)
-            .setAlpha(0.7)
-            .setOrigin(0.5);
-    
-        // Animate the text
-        this.tweens.add({
-            targets: penaltyText,
-            y: y - 100,
-            alpha: 0,
-            duration: 1000,
-            ease: 'Power1',
-            onComplete: () => penaltyText.destroy()
-        });
-    
-        // Animate the flash
-        this.tweens.add({
-            targets: flash,
-            alpha: 0,
-            scale: 2,
-            duration: 300,
-            onComplete: () => flash.destroy()
-        });
-    
-        // If you have the particle texture loaded, add particles
-        if (this.textures.exists('particle')) {
-            const particles = this.add.particles('particle');
-            
-            particles.createEmitter({
-                x: x,
-                y: y,
-                speed: { min: -100, max: 100 },
-                angle: { min: 0, max: 360 },
-                scale: { start: 0.5, end: 0 },
-                alpha: { start: 1, end: 0 },
-                lifespan: 500,
-                quantity: 10,
-                tint: 0xff0000
-            });
-        
-            // Clean up particles
-            this.time.delayedCall(600, () => {
-                particles.destroy();
-            });
-        }
-    
-        // Add camera shake
-        this.cameras.main.shake(200, 0.005);
     }
 
     addPoints(points) {
         this.score += points;
         EventBus.emit('score-updated', this.score);
-    }
-
-    checkRecipeCompletion() {
-        if (!this.currentRecipe) return false;
-
-        const requiredIngredients = this.currentRecipe.ingredients;
-        const placedIngredients = this.placedIngredients.cookingStation.map(ing => ing.name);
-
-        // Check if all required ingredients are in the cooking station
-        return requiredIngredients.every(ingredient => placedIngredients.includes(ingredient));
-    }
-
-    completeRecipe() {
-        // Show completed meal image
-        this.cookingResult = this.add.image(
-            this.zoneManager.getZone('cookingStation').x + this.zoneManager.getZone('cookingStation').width / 2,
-            this.zoneManager.getZone('cookingStation').y + this.zoneManager.getZone('cookingStation').height / 2,
-            this.currentRecipe.result
-        )
-        .setOrigin(0.5)
-        .setScale(0.5);
-
-        // Clear current ingredients
-        this.clearCookingStation();
-
-        // Initialize pickup timer
-        this.initializePickupTimer();
-
-        // Move to next recipe immediately
-        this.cycleToNextRecipe();
-    }
-
-    clearCookingStation() {
-        this.placedIngredients.cookingStation.forEach(ingredient => {
-            ingredient.gameObject.destroy();
-        });
-        this.placedIngredients.cookingStation = [];
     }
 
     initializePickupTimer() {
@@ -646,70 +334,43 @@ export class OvercookedGame extends Scene {
         this.createPenaltyEffect();
     }
 
-    createPenaltyEffect() {
-        // Create a more intense flash effect
-        const penaltyFlash = this.add.rectangle(
-            this.cameras.main.centerX,
-            this.cameras.main.centerY,
-            this.cameras.main.width,
-            this.cameras.main.height,
-            0xff0000
-        ).setAlpha(0);
+    createPenaltyEffect(x, y, points) {
+        // Simple text effect
+        const penaltyText = this.add.text(x, y, `-${points}`, {
+            fontSize: '24px',
+            fontWeight: 'bold',
+            fill: '#FF4D4D'
+        }).setOrigin(0.5);
 
-        // Add warning text
-        const warningText = this.add.text(
-            this.cameras.main.centerX,
-            this.cameras.main.centerY,
-            'TIME PENALTY!',
-            { 
-                fontSize: '48px', 
-                fontWeight: 'bold',
-                fill: '#ff0000',
-                stroke: '#ffffff',
-                strokeThickness: 6
-            }
-        ).setOrigin(0.5).setAlpha(0);
-
-        // Create multiple flash sequences
+        // Subtle fade-up animation
         this.tweens.add({
-            targets: [penaltyFlash, warningText],
-            alpha: 0.5,
-            duration: 150,
-            yoyo: true,
-            repeat: 2,
-            onComplete: () => {
-                penaltyFlash.destroy();
-                warningText.destroy();
-            }
+            targets: penaltyText,
+            y: y - 50,
+            alpha: 0,
+            duration: 800,
+            ease: 'Power1',
+            onComplete: () => penaltyText.destroy()
         });
 
-        // Shake the camera
-        this.cameras.main.shake(300, 0.005);
-    }
+        // Small flash effect
+        const flash = this.add.rectangle(x, y, 40, 40, 0xff0000)
+            .setAlpha(0.3)
+            .setOrigin(0.5);
 
-    cycleToNextRecipe() {
-        const recipeIndex = (this.recipes.indexOf(this.currentRecipe) + 1) % this.recipes.length;
-        this.currentRecipe = this.recipes[recipeIndex];
-        
-        // Animate recipe transition
-        if (this.recipeDisplay) {
-            this.tweens.add({
-                targets: this.recipeDisplay,
-                alpha: 0,
-                duration: 150,
-                onComplete: () => {
-                    this.recipeDisplay.setTexture(this.currentRecipe.image);
-                    this.tweens.add({
-                        targets: this.recipeDisplay,
-                        alpha: 1,
-                        duration: 150
-                    });
-                }
-            });
-        }
+        this.tweens.add({
+            targets: flash,
+            alpha: 0,
+            scale: 1.5,
+            duration: 200,
+            onComplete: () => flash.destroy()
+        });
 
-        // Emit recipe updated event
-        EventBus.emit('recipe-updated', this.currentRecipe.name);
+        // Optional: Very subtle camera shake
+        this.cameras.main.shake(150, 0.02);
+
+        // Play a softer sound effect
+        const trashSound = this.sound.add('trashDisposalSound');
+        trashSound.play({ volume: 0.2 });
     }
 
     dropOffAtReadyTable(chef) {
@@ -867,68 +528,6 @@ export class OvercookedGame extends Scene {
             } catch (error) {
                 console.warn('Error updating recipe display:', error);
             }
-        }
-    }
-
-    handleCookingStationDropoff(chef) {
-        if (!chef.heldIngredient) return;
-
-        const cookingStation = this.zoneManager.getZone('cookingStation');
-        // Initialize the cooking station array if it doesn't exist
-        if (!this.ingredientManager.placedIngredients.cookingStation) {
-            this.ingredientManager.placedIngredients.cookingStation = [];
-        }
-
-        // Add the new ingredient with its state
-        const newIngredient = {
-            ...chef.heldIngredient,
-            state: chef.heldIngredient.state || 'raw'  // Ensure state exists
-        };
-        
-        this.ingredientManager.placedIngredients.cookingStation.push(newIngredient);
-        
-        // Position the ingredient on the cooking station
-        if (newIngredient.gameObject) {
-            newIngredient.gameObject.setPosition(
-                cookingStation.x + (Math.random() * 30) - 15,
-                cookingStation.y + (Math.random() * 30) - 15
-            );
-        }
-
-        // Clear the chef's held ingredient
-        chef.heldIngredient = null;
-
-        console.log('Current ingredients on cooking station:', 
-            this.ingredientManager.placedIngredients.cookingStation.map(ing => ({
-                name: ing.name,
-                state: ing.state
-            }))
-        );
-
-        // Check recipe completion
-        const isComplete = this.recipeManager.checkRecipeCompletion(
-            this.ingredientManager.placedIngredients.cookingStation
-        );
-        
-        console.log('Recipe completion check result:', isComplete);
-
-        if (isComplete) {
-            console.log('Recipe completed!');
-            
-            // Clear cooking station
-            this.ingredientManager.placedIngredients.cookingStation.forEach(ing => {
-                if (ing.gameObject) {
-                    ing.gameObject.destroy();
-                }
-            });
-            this.ingredientManager.placedIngredients.cookingStation = [];
-
-            // Complete the recipe
-            this.recipeManager.completeRecipe();
-
-            // Play success sound
-            const successSound = this.sound.add('pickupSound');
-            successSound.play({ volume: 0.3 });
         }
     }
 }

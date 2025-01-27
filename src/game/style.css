@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "tailwindcss";
+
 
 
 body {
@@ -6,25 +8,12 @@ body {
     padding: 0;
     width: 100vw;
     height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    background: linear-gradient(45deg, rgba(14, 195, 201, 0.05), rgba(255, 75, 75, 0.05));
-    color: rgba(255, 255, 255, 0.87);
-    font-family: Arial, Helvetica, sans-serif;
+    overflow: hidden;
 }
 
 #app {
-    position: fixed;
-    top: 0;
-    left: 0;
     width: 100vw;
     height: 100vh;
-    overflow: hidden;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
 }
 
 #phaser-game {
