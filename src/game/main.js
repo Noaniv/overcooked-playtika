@@ -6,6 +6,7 @@ import { MainMenu } from './scenes/MainMenu';
 import { OvercookedGame } from './scenes/OvercookedGame';
 import { Preloader } from './scenes/Preloader';
 import { TransitionScene } from './scenes/TransitionScene';
+import { InstructionsScene } from './scenes/InstructionScene';
 
 const config = {
     type: Phaser.AUTO,
@@ -24,6 +25,7 @@ const config = {
         Boot,
         Preloader,
         MainMenu,
+        InstructionsScene,
         CountdownScene,
         OvercookedGame,
         GameOver,

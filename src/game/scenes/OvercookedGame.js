@@ -129,7 +129,7 @@ export class OvercookedGame extends Scene {
     }
 
     startGameTimer() {
-        let timeLeft = 5; // 2 minutes in seconds
+        let timeLeft = 120; // 2 minutes in seconds
         
         this.gameTimer = this.time.addEvent({
             delay: 1000,

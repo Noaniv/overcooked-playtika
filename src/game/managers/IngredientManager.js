@@ -1,3 +1,6 @@
+import { EventBus } from '../EventBus';
+
+
 export class IngredientManager {
     constructor(scene) {
         this.scene = scene;
@@ -602,7 +605,11 @@ export class IngredientManager {
 
         const cookingStation = this.scene.zoneManager.getZone('cookingStation');
         if (!cookingStation) return;
-
+    
+        // If the ingredient is prepped, emit the completion event
+        if (character.heldIngredient.state === 'prepped') {
+            EventBus.emit('ingredient-completed', character.heldIngredient.name);
+        }
         const dropPos = {
             x: cookingStation.x + cookingStation.width / 2,
             y: cookingStation.y + cookingStation.height / 2
