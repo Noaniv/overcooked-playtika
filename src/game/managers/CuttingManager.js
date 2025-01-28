@@ -5,22 +5,24 @@ export class CuttingManager {
         this.currentCharacter = null;
         this.cuttingProgress = 0;
         this.cuttingSound = null;
-        this.requiredCuttingTime = 5000; // 5 seconds
+        this.requiredCuttingTime = 5000;
         this.penaltyPoints = -10;
+        this.progressContainer = null;
         this.progressBar = null;
         this.progressFill = null;
         this.progressText = null;
+        this.progressBorder = null;
+        this.timerLabel = null;
+        this.decorativeBorder = null;
     }
 
-    startCuttingTimer(character) {
+
+   startCuttingTimer(character) {
         const isAtCuttingBoard = character.currentZone === 'cuttingBoard' || 
                                 character.currentZone === 'leftCuttingBoard';
                                 
-        if (!isAtCuttingBoard || this.isCutting) {
-            return;
-        }
+        if (!isAtCuttingBoard || this.isCutting) return;
 
-        // Get the ingredient from the cutting board
         const boardIngredients = this.scene.ingredientManager.placedIngredients[character.currentZone];
         if (boardIngredients.length === 0) return;
 
@@ -31,37 +33,80 @@ export class CuttingManager {
         this.currentCharacter = character;
         this.cuttingProgress = 0;
 
-        // Create progress bar
+        // Position variables
         const barX = ingredientToCut.gameObject.x;
-        const barY = ingredientToCut.gameObject.y - 40;
+        const barY = ingredientToCut.gameObject.y - 50;
+        const barWidth = 140;
+        const barHeight = 25;
 
-        this.progressBar = this.scene.add.rectangle(
-            barX,
-            barY,
-            100,
-            15,
-            0x000000,
-            0.8
-        ).setOrigin(0.5).setDepth(1);
+        // Create container
+        this.progressContainer = this.scene.add.container(barX, barY).setDepth(10);
 
-        this.progressFill = this.scene.add.rectangle(
-            barX - 48,
-            barY,
-            0,
-            11,
-            0x00ff00,
-            1
-        ).setOrigin(0, 0.5).setDepth(2);
+        // Add decorative background pattern
+        const pattern = this.scene.add.graphics();
+        pattern.lineStyle(2, 0xFFA500, 0.3); // Orange lines
+        for (let i = -barWidth/2 - 10; i < barWidth/2 + 10; i += 10) {
+            pattern.lineBetween(i, -barHeight/2 - 5, i + 10, barHeight/2 + 5);
+        }
+        this.progressContainer.add(pattern);
 
-        this.progressText = this.scene.add.text(
-            barX,
-            barY - 20,
-            '0%',
-            {
-                fontSize: '16px',
-                fill: '#ffffff'
+        // Create main background with Mexican-inspired colors
+        this.progressBar = this.scene.add.graphics();
+        this.progressBar.clear();
+        this.progressBar.fillStyle(0x8B0000, 0.85); // Dark red background
+        this.progressBar.fillRoundedRect(-barWidth/2, -barHeight/2, barWidth, barHeight, 10);
+        this.progressContainer.add(this.progressBar);
+
+        // Create progress fill
+        this.progressFill = this.scene.add.graphics();
+        this.updateProgressFill(0);
+        this.progressContainer.add(this.progressFill);
+
+        // Create decorative border
+        this.decorativeBorder = this.scene.add.graphics();
+        this.decorativeBorder.lineStyle(3, 0xFFD700, 1); // Gold border
+        this.decorativeBorder.strokeRoundedRect(-barWidth/2 - 5, -barHeight/2 - 5, barWidth + 10, barHeight + 10, 12);
+        this.decorativeBorder.lineStyle(2, 0xFF4500, 0.8); // Secondary orange border
+        this.decorativeBorder.strokeRoundedRect(-barWidth/2, -barHeight/2, barWidth, barHeight, 10);
+        this.progressContainer.add(this.decorativeBorder);
+
+        // Create timer label with Mexican-inspired text style
+        this.timerLabel = this.scene.add.text(0, -30, 'Start Chopping!', {
+            fontSize: '20px',
+            fontStyle: 'bold',
+            fill: '#FFD700', // Gold text
+            stroke: '#8B0000', // Dark red stroke
+            strokeThickness: 4,
+            shadow: {
+                offsetX: 2,
+                offsetY: 2,
+                color: '#000000',
+                blur: 2,
+                fill: true
             }
-        ).setOrigin(0.5).setDepth(2);
+        }).setOrigin(0.5);
+        this.progressContainer.add(this.timerLabel);
+
+        // Create percentage text
+        this.progressText = this.scene.add.text(0, 0, '0%', {
+            fontSize: '16px',
+            fontStyle: 'bold',
+            fill: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+        this.progressContainer.add(this.progressText);
+
+        // Add container animation
+        this.scene.tweens.add({
+            targets: this.progressContainer,
+            scaleX: 1.05,
+            scaleY: 1.05,
+            duration: 500,
+            yoyo: true,
+            repeat: -1,
+            ease: 'Sine.easeInOut'
+        });
 
         // Start cutting sound
         this.cuttingSound = this.scene.sound.add('cuttingKitchenSound', {
@@ -69,6 +114,52 @@ export class CuttingManager {
             volume: 0.3
         });
         this.cuttingSound.play();
+    }
+
+    updateProgressFill(progress) {
+        if (!this.progressFill) return;
+
+        const barWidth = 140;
+        const barHeight = 25;
+        const fillWidth = barWidth * progress;
+
+        this.progressFill.clear();
+
+        // Mexican-inspired gradient colors
+        const colors = {
+            start: 0x00AF87,  // Turquoise
+            middle: 0xFF4500, // Red-Orange
+            end: 0x00FF00     // Green
+        };
+
+        let fillColor;
+        if (progress < 0.5) {
+            fillColor = colors.middle;
+        } else {
+            fillColor = colors.end;
+        }
+
+        // Create gradient fill
+        this.progressFill.fillStyle(fillColor, 1);
+        this.progressFill.fillRoundedRect(
+            -barWidth/2,
+            -barHeight/2,
+            fillWidth,
+            barHeight,
+            10
+        );
+
+        // Add pattern to fill
+        const patternSpacing = 15;
+        this.progressFill.lineStyle(2, 0xFFFFFF, 0.2);
+        for (let i = 0; i < fillWidth; i += patternSpacing) {
+            this.progressFill.lineBetween(
+                -barWidth/2 + i,
+                -barHeight/2,
+                -barWidth/2 + i - barHeight,
+                barHeight/2
+            );
+        }
     }
 
     failCutting() {
@@ -181,7 +272,7 @@ export class CuttingManager {
         
         // Clear cutting boards
         this.scene.ingredientManager.placedIngredients.cuttingBoard = [];
-        this.scene.ingredientManager.placedIngredients.leftCuttingBoard = [];
+        this.scene.ingredientManager.placedIngredients .leftCuttingBoard = [];
     }
 
     update(time, delta) {
@@ -197,16 +288,32 @@ export class CuttingManager {
         }
 
         this.cuttingProgress += delta;
+        const progress = Math.min(this.cuttingProgress / this.requiredCuttingTime, 1);
         
         // Update progress bar and text
-        if (this.progressFill && this.progressBar) {
-            const progress = Math.min(this.cuttingProgress / this.requiredCuttingTime, 1);
-            this.progressFill.width = 96 * progress;
+        if (this.progressFill) {
+            this.updateProgressFill(progress);
             
             if (this.progressText) {
                 const percentage = Math.floor(progress * 100);
                 this.progressText.setText(`${percentage}%`);
             }
+
+            // Update label with English text
+            if (this.timerLabel) {
+                if (progress < 0.3) {
+                    this.timerLabel.setText('Start Chopping!');
+                } else if (progress < 0.7) {
+                    this.timerLabel.setText('Keep Going!');
+                } else {
+                    this.timerLabel.setText('Almost Done!');
+                }
+            }
+        }
+
+        // Add subtle sway animation to the decorative border
+        if (this.decorativeBorder) {
+            this.decorativeBorder.rotation = Math.sin(time / 500) * 0.01;
         }
 
         if (this.cuttingProgress >= this.requiredCuttingTime) {
@@ -221,18 +328,17 @@ export class CuttingManager {
             this.cuttingSound = null;
         }
 
-        if (this.progressBar) {
-            this.progressBar.destroy();
-            this.progressBar = null;
+        if (this.progressContainer) {
+            this.progressContainer.destroy();
+            this.progressContainer = null;
         }
-        if (this.progressFill) {
-            this.progressFill.destroy();
-            this.progressFill = null;
-        }
-        if (this.progressText) {
-            this.progressText.destroy();
-            this.progressText = null;
-        }
+
+        this.progressBar = null;
+        this.progressFill = null;
+        this.progressText = null;
+        this.progressBorder = null;
+        this.timerLabel = null;
+        this.decorativeBorder = null;
 
         this.isCutting = false;
         this.currentCharacter = null;

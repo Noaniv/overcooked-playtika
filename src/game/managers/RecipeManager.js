@@ -57,7 +57,6 @@ export class RecipeManager {
     }
 
     cycleToNextRecipe() {
-        // Get a random index different from the current recipe
         let newIndex;
         do {
             newIndex = Math.floor(Math.random() * this.recipes.length);
@@ -65,12 +64,9 @@ export class RecipeManager {
         
         this.currentRecipe = this.recipes[newIndex];
         
-        console.log('Emitting recipe update:', {
-            name: this.currentRecipe.name,
-            image: this.currentRecipe.image,
-            ingredients: this.currentRecipe.ingredients
-        });
-
+        // Reset ingredients when cycling to new recipe
+        EventBus.emit('recipe-reset');
+        
         EventBus.emit('recipe-updated', this.currentRecipe);
     }
 
@@ -140,9 +136,9 @@ export class RecipeManager {
             console.warn('Cannot complete recipe: no current recipe');
             return;
         }
-
+    
         console.log('Completing recipe:', this.currentRecipe.name);
-
+    
         // Award points
         this.scene.addPoints(50);
         
@@ -152,10 +148,12 @@ export class RecipeManager {
             result: this.currentRecipe.result
         });
         
+        // Reset the ingredients completion status
+        EventBus.emit('recipe-reset');
+        
         // Move to next recipe
         this.cycleToNextRecipe();
     }
-
     // Initialize with first recipe
     start() {
         // Choose a random recipe to start with

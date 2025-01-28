@@ -119,6 +119,17 @@ export class Preloader extends Scene
         this.load.image('stations', 'stations.png');
         this.load.image('mainMenuBackground', 'mainMenuBackground.png');
 
+
+        this.load.setPath('assets/Instructions/');
+        // In your loading scene:
+        this.load.image('instruction1', 'Instruction1.png');
+        this.load.image('instruction2', 'Instruction2.png');
+        this.load.image('instruction3', 'Instruction3.png');
+        this.load.image('instruction4', 'Instruction4.png');
+        this.load.image('instruction5', 'Instruction5.png');
+        this.load.image('instruction6', 'Instruction6.png');
+
+
         this.load.setPath('assets/audio/');
         console.log('Loading audio files...');
         
@@ -153,7 +164,13 @@ export class Preloader extends Scene
         });
 
         this.load.on('loaderror', (file) => {
-            console.error('Error loading file:', file.src);
+            console.error('Error loading file:', file.key, file.src);
+        });
+
+        this.load.on('filecomplete', (key) => {
+            if (key.startsWith('instruction')) {
+                console.log('Successfully loaded instruction image:', key);
+            }
         });
     }
 

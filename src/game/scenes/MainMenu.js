@@ -1,3 +1,4 @@
+// MainMenu.js
 import { Scene } from 'phaser';
 import { EventBus } from '../EventBus';
 
@@ -33,8 +34,9 @@ export class MainMenu extends Scene {
         // Synchronize logo and shadow movement
         this.logo.shadow = logoShadow;
 
-        // Create decorative frame for the start button
-        this.createDecorativeButton(512, 460, '¡Comenzar!');
+        // Create buttons with decorative frames
+        this.createDecorativeButton(512, 460, '¡Comenzar!', () => this.startGame());
+        this.createDecorativeButton(512, 560, '¡Instructions!', () => this.scene.start('Instructions'));
 
         // Music setup
         if (this.game.music && !this.game.music.isPlaying && !this.sound.locked) {
@@ -91,7 +93,7 @@ export class MainMenu extends Scene {
         }
     }
 
-    createDecorativeButton(x, y, text) {
+    createDecorativeButton(x, y, text, callback) {
         // Create a decorative frame for the button
         const buttonWidth = 300;
         const buttonHeight = 80;
@@ -127,7 +129,7 @@ export class MainMenu extends Scene {
         });
 
         // Add the text with enhanced style
-        const mainMenuText = this.add.text(x, y, text, {
+        const buttonText = this.add.text(x, y, text, {
             fontFamily: 'Arial Black',
             fontSize: 38,
             color: '#FFFFFF',
@@ -140,7 +142,11 @@ export class MainMenu extends Scene {
         const hitArea = this.add.rectangle(x, y, buttonWidth, buttonHeight)
             .setInteractive({ useHandCursor: true });
 
-        hitArea.on('pointerdown', () => this.changeScene());
+        hitArea.on('pointerdown', () => {
+            if (callback) callback();
+            else this.changeScene();
+        });
+        
         hitArea.on('pointerover', () => {
             button.clear();
             button.lineStyle(4, 0xFFF700);
@@ -150,7 +156,7 @@ export class MainMenu extends Scene {
             
             // Scale up text slightly
             this.tweens.add({
-                targets: mainMenuText,
+                targets: buttonText,
                 scale: 1.1,
                 duration: 100
             });
@@ -165,14 +171,14 @@ export class MainMenu extends Scene {
             
             // Reset text scale
             this.tweens.add({
-                targets: mainMenuText,
+                targets: buttonText,
                 scale: 1,
                 duration: 100
             });
         });
     }
 
-    changeScene() {
+    startGame() {
         if (this.logoTween) {
             this.logoTween.stop();
             this.logoTween = null;
